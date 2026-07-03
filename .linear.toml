@@ -1,0 +1,4 @@
+workspace = "allinapp"
+team_id = "ALL"
+issue_sort = "priority"
+vcs = "git"
