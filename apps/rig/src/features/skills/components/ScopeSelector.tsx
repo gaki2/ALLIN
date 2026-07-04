@@ -1,57 +1,40 @@
-import { cn, Popover, PopoverContent, PopoverTrigger, toast } from '@allin/ui';
+import { cn, Popover, PopoverContent, PopoverTrigger } from '@allin/ui';
 import { Check, ChevronsUpDown, Folder, Home, Plus } from 'lucide-react';
 import posthog from 'posthog-js';
-import { useEffect } from 'react';
-import type { SkillRoot } from '../types';
-import { useRemoveSkillRoot } from '../useRemoveSkillRoot';
+import type { SkillRoot, SkillScopeKind } from '../types';
 
-const GLOBAL_REPOSITORY_ID = 'global';
+const GLOBAL_SCOPE_ID = 'global';
 
-interface RepositorySelectorProps {
+export interface SkillScopeOption {
+  id: string;
+  label: string;
+  kind: SkillScopeKind;
   roots: SkillRoot[];
-  selectedRepositoryId: string;
+}
+
+interface ScopeSelectorProps {
+  roots: SkillRoot[];
+  selectedScopeId: string;
   isOpen: boolean;
   isImporting: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSelectRepository: (repositoryId: string) => void;
-  onImportRepository: () => void;
+  onSelectScope: (scopeId: string) => void;
+  onImportScope: () => void;
 }
 
-export const RepositorySelector = ({
+export const ScopeSelector = ({
   roots,
-  selectedRepositoryId,
+  selectedScopeId,
   isOpen,
   isImporting,
   onOpenChange,
-  onSelectRepository,
-  onImportRepository,
-}: RepositorySelectorProps) => {
-  const repositoryRoots = roots.filter(root => root.kind === 'repository');
-  const selectedRepository = repositoryRoots.find(
-    root => root.id === selectedRepositoryId,
-  );
-  const selectedLabel = selectedRepository?.label ?? 'Global';
-  const { removeRoot } = useRemoveSkillRoot();
-
-  useEffect(() => {
-    if (
-      selectedRepository?.kind === 'repository' &&
-      !selectedRepository?.exists
-    ) {
-      toast.error(`${selectedLabel} repository does not exist.`, {
-        description: 'This repository is removed from the list.',
-      });
-
-      removeRoot(selectedRepositoryId);
-      onSelectRepository(GLOBAL_REPOSITORY_ID);
-    }
-  }, [
-    onSelectRepository,
-    removeRoot,
-    selectedLabel,
-    selectedRepository,
-    selectedRepositoryId,
-  ]);
+  onSelectScope,
+  onImportScope,
+}: ScopeSelectorProps) => {
+  const scopeOptions = getScopeOptions(roots);
+  const selectedScope = scopeOptions.find(scope => scope.id === selectedScopeId);
+  const selectedLabel = selectedScope?.label ?? 'Global';
+  const isGlobalSelected = selectedScopeId === GLOBAL_SCOPE_ID;
 
   return (
     <Popover open={isOpen} onOpenChange={onOpenChange}>
@@ -61,7 +44,7 @@ export const RepositorySelector = ({
           className='flex h-14 w-78 ml-2 items-center gap-3 rounded-sm px-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
         >
           <span className='flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background'>
-            {selectedRepository ? <Folder size={18} /> : <Home size={18} />}
+            {isGlobalSelected ? <Home size={18} /> : <Folder size={18} />}
           </span>
           <span className='min-w-0 flex-1'>
             <span className='block truncate text-sm font-semibold leading-4'>
@@ -82,35 +65,26 @@ export const RepositorySelector = ({
         className='w-78 shadow-2xl rounded-2xl p-3'
       >
         <p className='px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-          Repository
+          Scope
         </p>
 
-        <RepositoryOption
-          icon={<Home size={18} />}
-          label='Global'
-          path='Default skill roots'
-          isSelected={selectedRepositoryId === GLOBAL_REPOSITORY_ID}
-          onClick={() => {
-            onSelectRepository(GLOBAL_REPOSITORY_ID);
-            posthog.capture('repository_selected', {
-              repository_id: GLOBAL_REPOSITORY_ID,
-              repository_label: 'Global',
-            });
-          }}
-        />
-
-        {repositoryRoots.map(root => (
-          <RepositoryOption
-            key={root.id}
-            icon={<Folder size={18} />}
-            label={root.label}
-            path={root.path}
-            isSelected={selectedRepositoryId === root.id}
+        {scopeOptions.map(scope => (
+          <ScopeOption
+            key={scope.id}
+            icon={
+              scope.kind === 'global' ? <Home size={18} /> : <Folder size={18} />
+            }
+            label={scope.label}
+            path={getScopeDescription(scope)}
+            isSelected={selectedScopeId === scope.id}
             onClick={() => {
-              onSelectRepository(root.id);
+              onSelectScope(scope.id);
               posthog.capture('repository_selected', {
-                repository_id: root.id,
-                repository_label: root.label,
+                repository_id: scope.id,
+                repository_label: scope.label,
+                scope_id: scope.id,
+                scope_label: scope.label,
+                scope_kind: scope.kind,
               });
             }}
           />
@@ -120,7 +94,7 @@ export const RepositorySelector = ({
 
         <button
           type='button'
-          onClick={onImportRepository}
+          onClick={onImportScope}
           disabled={isImporting}
           className='flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
         >
@@ -130,10 +104,10 @@ export const RepositorySelector = ({
 
           <span className='min-w-0'>
             <span className='block text-sm font-semibold'>
-              {isImporting ? 'Importing repository...' : 'Import repository...'}
+              {isImporting ? 'Importing scope...' : 'Import repository scope...'}
             </span>
             <span className='mt-0.5 block font-mono text-xs text-muted-foreground'>
-              From a local folder
+              Choose a project folder
             </span>
           </span>
         </button>
@@ -142,7 +116,43 @@ export const RepositorySelector = ({
   );
 };
 
-interface RepositoryOptionProps {
+const getScopeOptions = (roots: SkillRoot[]): SkillScopeOption[] => {
+  const scopes = new Map<string, SkillScopeOption>();
+
+  for (const root of roots) {
+    const existingScope = scopes.get(root.scopeId);
+
+    if (existingScope) {
+      existingScope.roots.push(root);
+      continue;
+    }
+
+    scopes.set(root.scopeId, {
+      id: root.scopeId,
+      label: root.scopeLabel,
+      kind: root.scopeKind,
+      roots: [root],
+    });
+  }
+
+  return [...scopes.values()].toSorted((a, b) => {
+    if (a.kind !== b.kind) {
+      return a.kind === 'global' ? -1 : 1;
+    }
+
+    return a.label.localeCompare(b.label);
+  });
+};
+
+const getScopeDescription = (scope: SkillScopeOption) => {
+  if (scope.kind === 'global') {
+    return 'Global provider skill roots';
+  }
+
+  return scope.id;
+};
+
+interface ScopeOptionProps {
   icon: React.ReactNode;
   label: string;
   path: string;
@@ -150,13 +160,13 @@ interface RepositoryOptionProps {
   onClick: () => void;
 }
 
-const RepositoryOption = ({
+const ScopeOption = ({
   icon,
   label,
   path,
   isSelected,
   onClick,
-}: RepositoryOptionProps) => {
+}: ScopeOptionProps) => {
   return (
     <button
       type='button'
@@ -189,4 +199,4 @@ const RepositoryOption = ({
   );
 };
 
-export { GLOBAL_REPOSITORY_ID };
+export { GLOBAL_SCOPE_ID };
