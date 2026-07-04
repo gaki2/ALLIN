@@ -320,8 +320,17 @@ const InstallSkillDialog = ({
             <p className='mt-1 font-mono text-sm font-medium'>{skillName}</p>
           </div>
 
+          <div className='rounded-lg border bg-muted/30 p-3'>
+            <p className='text-xs font-medium uppercase tracking-wide text-muted-foreground'>
+              Install to
+            </p>
+            <p className='mt-1 text-sm font-medium'>
+              {targetRoot ? providerLabels[targetRoot.provider] : 'Provider'}
+            </p>
+          </div>
+
           <label className='block space-y-2 text-sm'>
-            <span className='font-medium'>Source provider</span>
+            <span className='font-medium'>Use version from</span>
             <select
               className='h-10 w-full rounded-md border bg-background px-3 text-sm'
               value={selectedSourceSkill?.provider ?? ''}
@@ -336,21 +345,6 @@ const InstallSkillDialog = ({
               ))}
             </select>
           </label>
-
-          <PathPreview
-            label='Source'
-            providerSkill={selectedSourceSkill}
-            fallback='Select a source provider'
-          />
-          <PathPreview
-            label='Target'
-            path={
-              targetRoot && selectedSourceSkill
-                ? `${targetRoot.path}/${selectedSourceSkill.relativePath}`
-                : (targetRoot?.path ?? 'Select a target provider')
-            }
-            fallback='Select a target provider'
-          />
         </div>
 
         <DialogFooter>
@@ -367,40 +361,11 @@ const InstallSkillDialog = ({
             disabled={!selectedSourceSkill || !targetRoot || isInstalling}
             onClick={onInstall}
           >
-            {isInstalling
-              ? 'Installing...'
-              : `Install to ${targetRoot ? providerLabels[targetRoot.provider] : 'provider'}`}
+            {isInstalling ? 'Installing...' : 'Install'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-};
-
-const PathPreview = ({
-  label,
-  providerSkill,
-  path,
-  fallback,
-}: {
-  label: string;
-  providerSkill?: ProviderSkill | null;
-  path?: string;
-  fallback: string;
-}) => {
-  const previewPath = providerSkill
-    ? `${providerSkill.rootPath}/${providerSkill.relativePath}`
-    : path;
-
-  return (
-    <div className='rounded-lg border bg-muted/30 p-3'>
-      <p className='text-xs font-medium uppercase tracking-wide text-muted-foreground'>
-        {label}
-      </p>
-      <p className='mt-1 break-all font-mono text-xs'>
-        {previewPath ?? fallback}
-      </p>
-    </div>
   );
 };
 
