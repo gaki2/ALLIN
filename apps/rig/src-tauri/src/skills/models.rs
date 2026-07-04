@@ -146,6 +146,24 @@ pub struct SkillDeletionError {
     pub message: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SkillCopyErrorCode {
+    PathNotFound,
+    NotDirectory,
+    OutsideRoot,
+    MissingSkillFile,
+    TargetExists,
+    CopyFailed,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillCopyError {
+    pub code: SkillCopyErrorCode,
+    pub message: String,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SkillUsageLogSchema {

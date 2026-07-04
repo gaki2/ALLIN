@@ -66,6 +66,20 @@ export const SkillDeletionErrorSchema = z.object({
   message: z.string(),
 });
 
+export const SkillCopyErrorCodeSchema = z.enum([
+  'pathNotFound',
+  'notDirectory',
+  'outsideRoot',
+  'missingSkillFile',
+  'targetExists',
+  'copyFailed',
+]);
+
+export const SkillCopyErrorSchema = z.object({
+  code: SkillCopyErrorCodeSchema,
+  message: z.string(),
+});
+
 export const SkillRootImportErrorCodeSchema = z.enum([
   'pathNotFound',
   'notDirectory',
@@ -149,6 +163,8 @@ export type SkillDeletionErrorCode = z.infer<
   typeof SkillDeletionErrorCodeSchema
 >;
 export type SkillDeletionError = z.infer<typeof SkillDeletionErrorSchema>;
+export type SkillCopyErrorCode = z.infer<typeof SkillCopyErrorCodeSchema>;
+export type SkillCopyError = z.infer<typeof SkillCopyErrorSchema>;
 export type SkillRootImportErrorCode = z.infer<
   typeof SkillRootImportErrorCodeSchema
 >;

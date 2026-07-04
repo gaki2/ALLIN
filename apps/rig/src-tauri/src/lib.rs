@@ -97,6 +97,7 @@ pub fn run() {
             update::commands::install_update,
             plugins::commands::install_plugin_target,
             plugins::commands::list_plugin_targets,
+            skills::commands::copy_skill,
             skills::commands::import_skill_root,
             skills::commands::list_skill_roots,
             skills::commands::list_skills,

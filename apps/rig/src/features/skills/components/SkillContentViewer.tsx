@@ -1,6 +1,17 @@
-import { Badge, ScrollArea } from '@allin/ui';
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  ScrollArea,
+} from '@allin/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
+import { useMemo, useState } from 'react';
 import {
   getDefaultProviderSkill,
   providerLabels,
@@ -8,7 +19,8 @@ import {
   type Skill,
 } from '../skillModel';
 import { listSkillUsageEvents, listSkillUsages } from '../api';
-import type { SkillRoot, SkillUsageEvent } from '../types';
+import type { ProviderSkill, SkillProvider, SkillRoot, SkillUsageEvent } from '../types';
+import { useInstallSkill } from '../useInstallSkill';
 
 interface SkillContentViewerProps {
   skill: Skill | null;
@@ -18,6 +30,10 @@ interface SkillContentViewerProps {
 export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) => {
   const skillName = skill?.name ?? '';
   const defaultProviderSkill = skill ? getDefaultProviderSkill(skill) : null;
+  const installSkillMutation = useInstallSkill();
+  const [installTargetRoot, setInstallTargetRoot] = useState<SkillRoot | null>(null);
+  const [selectedSourceProvider, setSelectedSourceProvider] =
+    useState<SkillProvider | null>(null);
   const {
     data: recentEvents = [],
     error: eventsError,
@@ -47,6 +63,17 @@ export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) =>
   }
 
   const providerSkills = Object.values(skill.providerSkills);
+  const installSourceSkills = useMemo(
+    () =>
+      providerOrder.flatMap(provider => {
+        const providerSkill = skill.providerSkills[provider];
+        return providerSkill ? [providerSkill] : [];
+      }),
+    [skill],
+  );
+  const selectedSourceSkill = selectedSourceProvider
+    ? skill.providerSkills[selectedSourceProvider]
+    : (installSourceSkills[0] ?? null);
   const monthUsage = monthUsages.find(usage => usage.name === skill.name);
   const allUsage = allUsages.find(usage => usage.name === skill.name);
   const lastUsedAt = recentEvents[0]?.usedAt ?? allUsage?.lastUsedAt ?? null;
@@ -91,7 +118,15 @@ export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) =>
             />
           </div>
 
-          <ProviderMatrix skill={skill} roots={roots} />
+          <ProviderMatrix
+            skill={skill}
+            roots={roots}
+            onInstallToRoot={root => {
+              setInstallTargetRoot(root);
+              setSelectedSourceProvider(installSourceSkills[0]?.provider ?? null);
+            }}
+            installingTargetRootId={installSkillMutation.installingTargetRootId}
+          />
 
           <section className='rounded-xl border bg-card'>
             <div className='border-b px-4 py-3'>
@@ -139,6 +174,37 @@ export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) =>
           </section>
         </div>
       </ScrollArea>
+
+      <InstallSkillDialog
+        open={installTargetRoot !== null}
+        skillName={skill.name}
+        sourceSkills={installSourceSkills}
+        targetRoot={installTargetRoot}
+        selectedSourceProvider={selectedSourceSkill?.provider ?? null}
+        isInstalling={installSkillMutation.isInstalling}
+        onOpenChange={isOpen => {
+          if (!isOpen) {
+            setInstallTargetRoot(null);
+            setSelectedSourceProvider(null);
+          }
+        }}
+        onSelectSourceProvider={setSelectedSourceProvider}
+        onInstall={() => {
+          if (!selectedSourceSkill || !installTargetRoot) {
+            return;
+          }
+
+          installSkillMutation.installSkill(
+            { sourceSkill: selectedSourceSkill, targetRoot: installTargetRoot },
+            {
+              onSuccess: () => {
+                setInstallTargetRoot(null);
+                setSelectedSourceProvider(null);
+              },
+            },
+          );
+        }}
+      />
     </div>
   );
 };
@@ -146,9 +212,13 @@ export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) =>
 const ProviderMatrix = ({
   skill,
   roots,
+  onInstallToRoot,
+  installingTargetRootId,
 }: {
   skill: Skill;
   roots: SkillRoot[];
+  onInstallToRoot: (root: SkillRoot) => void;
+  installingTargetRootId: string | null;
 }) => {
   const orderedRoots = roots.toSorted(
     (a, b) => providerOrder.indexOf(a.provider) - providerOrder.indexOf(b.provider),
@@ -172,7 +242,7 @@ const ProviderMatrix = ({
               key={root.id}
               className='flex items-start justify-between gap-4 px-4 py-3'
             >
-              <div className='min-w-0'>
+              <div className='min-w-0 flex-1'>
                 <div className='flex items-center gap-2'>
                   <p className='text-sm font-medium'>
                     {providerLabels[root.provider]}
@@ -187,11 +257,150 @@ const ProviderMatrix = ({
                     : root.path}
                 </p>
               </div>
+
+              {!providerSkill && (
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  disabled={installingTargetRootId === root.id}
+                  onClick={() => onInstallToRoot(root)}
+                >
+                  {installingTargetRootId === root.id ? 'Installing...' : 'Install'}
+                </Button>
+              )}
             </div>
           );
         })}
       </div>
     </section>
+  );
+};
+
+const InstallSkillDialog = ({
+  open,
+  skillName,
+  sourceSkills,
+  targetRoot,
+  selectedSourceProvider,
+  isInstalling,
+  onOpenChange,
+  onSelectSourceProvider,
+  onInstall,
+}: {
+  open: boolean;
+  skillName: string;
+  sourceSkills: ProviderSkill[];
+  targetRoot: SkillRoot | null;
+  selectedSourceProvider: SkillProvider | null;
+  isInstalling: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectSourceProvider: (provider: SkillProvider) => void;
+  onInstall: () => void;
+}) => {
+  const selectedSourceSkill = selectedSourceProvider
+    ? sourceSkills.find(sourceSkill => sourceSkill.provider === selectedSourceProvider)
+    : (sourceSkills[0] ?? null);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className='max-w-2xl'>
+        <DialogHeader>
+          <DialogTitle>Install skill</DialogTitle>
+          <DialogDescription>
+            Choose an existing provider as the source. Rig will install this skill into the missing provider for the current scope.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className='space-y-4'>
+          <div className='rounded-lg border bg-muted/30 p-3'>
+            <p className='text-xs font-medium uppercase tracking-wide text-muted-foreground'>
+              Skill
+            </p>
+            <p className='mt-1 font-mono text-sm font-medium'>{skillName}</p>
+          </div>
+
+          <label className='block space-y-2 text-sm'>
+            <span className='font-medium'>Source provider</span>
+            <select
+              className='h-10 w-full rounded-md border bg-background px-3 text-sm'
+              value={selectedSourceSkill?.provider ?? ''}
+              onChange={event =>
+                onSelectSourceProvider(event.target.value as SkillProvider)
+              }
+            >
+              {sourceSkills.map(sourceSkill => (
+                <option key={sourceSkill.provider} value={sourceSkill.provider}>
+                  {providerLabels[sourceSkill.provider]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <PathPreview
+            label='Source'
+            providerSkill={selectedSourceSkill}
+            fallback='Select a source provider'
+          />
+          <PathPreview
+            label='Target'
+            path={
+              targetRoot && selectedSourceSkill
+                ? `${targetRoot.path}/${selectedSourceSkill.relativePath}`
+                : (targetRoot?.path ?? 'Select a target provider')
+            }
+            fallback='Select a target provider'
+          />
+        </div>
+
+        <DialogFooter>
+          <Button
+            type='button'
+            variant='outline'
+            disabled={isInstalling}
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type='button'
+            disabled={!selectedSourceSkill || !targetRoot || isInstalling}
+            onClick={onInstall}
+          >
+            {isInstalling
+              ? 'Installing...'
+              : `Install to ${targetRoot ? providerLabels[targetRoot.provider] : 'provider'}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const PathPreview = ({
+  label,
+  providerSkill,
+  path,
+  fallback,
+}: {
+  label: string;
+  providerSkill?: ProviderSkill | null;
+  path?: string;
+  fallback: string;
+}) => {
+  const previewPath = providerSkill
+    ? `${providerSkill.rootPath}/${providerSkill.relativePath}`
+    : path;
+
+  return (
+    <div className='rounded-lg border bg-muted/30 p-3'>
+      <p className='text-xs font-medium uppercase tracking-wide text-muted-foreground'>
+        {label}
+      </p>
+      <p className='mt-1 break-all font-mono text-xs'>
+        {previewPath ?? fallback}
+      </p>
+    </div>
   );
 };
 

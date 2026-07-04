@@ -2,9 +2,10 @@ use std::fs;
 use std::path::{Component, Path};
 
 use super::models::{
-    BucketType, Skill, SkillDeletionError, SkillDeletionErrorCode, SkillListingError,
-    SkillProvider, SkillRoot, SkillRootDefinition, SkillRootImportError, SkillRootKind,
-    SkillScopeKind, SkillUsage, SkillUsageError, SkillUsageEvent, SkillUsageSeries, WindowType,
+    BucketType, Skill, SkillCopyError, SkillCopyErrorCode, SkillDeletionError,
+    SkillDeletionErrorCode, SkillListingError, SkillProvider, SkillRoot, SkillRootDefinition,
+    SkillRootImportError, SkillRootKind, SkillScopeKind, SkillUsage, SkillUsageError,
+    SkillUsageEvent, SkillUsageSeries, WindowType,
 };
 use super::root_store::{
     import_skill_root_from_path, list_imported_skill_roots, remove_imported_skill_root,
@@ -134,6 +135,136 @@ pub fn list_skills(root: SkillRoot) -> Result<Vec<Skill>, SkillListingError> {
     return list_skills_from_root(&root);
 }
 
+fn is_invalid_relative_path(path: &Path) -> bool {
+    path.as_os_str().is_empty()
+        || path.is_absolute()
+        || path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::Prefix(_)))
+}
+
+fn copy_directory(source: &Path, target: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(target)?;
+
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        let source_path = entry.path();
+        let target_path = target.join(entry.file_name());
+
+        if source_path.is_dir() {
+            copy_directory(&source_path, &target_path)?;
+        } else {
+            fs::copy(&source_path, &target_path)?;
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn copy_skill(
+    source_root_path: String,
+    source_relative_path: String,
+    target_root_path: String,
+    target_relative_path: String,
+) -> Result<(), SkillCopyError> {
+    let source_root_path = expand_path(source_root_path.as_str())
+        .canonicalize()
+        .map_err(|error| SkillCopyError {
+            code: SkillCopyErrorCode::PathNotFound,
+            message: format!("Source skill root path does not exist: {}", error),
+        })?;
+
+    if !source_root_path.is_dir() {
+        return Err(SkillCopyError {
+            code: SkillCopyErrorCode::NotDirectory,
+            message: "Source skill root path is not a directory.".to_string(),
+        });
+    }
+
+    let source_relative_path = Path::new(source_relative_path.as_str());
+    let target_relative_path = Path::new(target_relative_path.as_str());
+
+    if is_invalid_relative_path(source_relative_path)
+        || is_invalid_relative_path(target_relative_path)
+    {
+        return Err(SkillCopyError {
+            code: SkillCopyErrorCode::OutsideRoot,
+            message: "Skill paths must stay inside their selected roots.".to_string(),
+        });
+    }
+
+    let source_skill_dir = source_root_path
+        .join(source_relative_path)
+        .canonicalize()
+        .map_err(|error| SkillCopyError {
+            code: SkillCopyErrorCode::PathNotFound,
+            message: format!("Source skill path does not exist: {}", error),
+        })?;
+
+    if !source_skill_dir.starts_with(&source_root_path) || source_skill_dir == source_root_path {
+        return Err(SkillCopyError {
+            code: SkillCopyErrorCode::OutsideRoot,
+            message: "Source skill path must stay inside the selected root.".to_string(),
+        });
+    }
+
+    if !source_skill_dir.is_dir() {
+        return Err(SkillCopyError {
+            code: SkillCopyErrorCode::NotDirectory,
+            message: "Source skill path is not a directory.".to_string(),
+        });
+    }
+
+    if !source_skill_dir.join("SKILL.md").is_file() {
+        return Err(SkillCopyError {
+            code: SkillCopyErrorCode::MissingSkillFile,
+            message: "Source skill directory does not contain SKILL.md.".to_string(),
+        });
+    }
+
+    let target_root_path = expand_path(target_root_path.as_str());
+    fs::create_dir_all(&target_root_path).map_err(|error| SkillCopyError {
+        code: SkillCopyErrorCode::CopyFailed,
+        message: format!("Failed to create target skill root: {}", error),
+    })?;
+
+    let target_root_path = target_root_path
+        .canonicalize()
+        .map_err(|error| SkillCopyError {
+            code: SkillCopyErrorCode::PathNotFound,
+            message: format!("Target skill root path does not exist: {}", error),
+        })?;
+
+    if !target_root_path.is_dir() {
+        return Err(SkillCopyError {
+            code: SkillCopyErrorCode::NotDirectory,
+            message: "Target skill root path is not a directory.".to_string(),
+        });
+    }
+
+    let target_skill_dir = target_root_path.join(target_relative_path);
+
+    if target_skill_dir.exists() {
+        return Err(SkillCopyError {
+            code: SkillCopyErrorCode::TargetExists,
+            message: "Target skill already exists.".to_string(),
+        });
+    }
+
+    if let Some(target_parent) = target_skill_dir.parent() {
+        fs::create_dir_all(target_parent).map_err(|error| SkillCopyError {
+            code: SkillCopyErrorCode::CopyFailed,
+            message: format!("Failed to create target skill parent directory: {}", error),
+        })?;
+    }
+
+    copy_directory(&source_skill_dir, &target_skill_dir).map_err(|error| SkillCopyError {
+        code: SkillCopyErrorCode::CopyFailed,
+        message: format!("Failed to copy skill: {}", error),
+    })
+}
+
 #[tauri::command]
 pub fn remove_skill(root_path: String, relative_path: String) -> Result<(), SkillDeletionError> {
     let root_path = expand_path(root_path.as_str());
@@ -255,5 +386,92 @@ mod tests {
         assert_eq!(hermes_root.scope_id, "global");
         assert_eq!(hermes_root.scope_label, "Global");
         assert_eq!(hermes_root.scope_kind, SkillScopeKind::Global);
+    }
+
+    #[test]
+    fn copy_skill_copies_directory_into_target_root() {
+        let sandbox = make_test_sandbox("copy-success");
+        let source_root = sandbox.join("agents");
+        let target_root = sandbox.join("hermes");
+        let source_skill = source_root.join("test-skill");
+        fs::create_dir_all(source_skill.join("references")).unwrap();
+        fs::write(
+            source_skill.join("SKILL.md"),
+            "---\nname: test-skill\ndescription: Test skill\n---\n",
+        )
+        .unwrap();
+        fs::write(source_skill.join("references/details.md"), "details").unwrap();
+
+        copy_skill(
+            source_root.to_string_lossy().to_string(),
+            "test-skill".to_string(),
+            target_root.to_string_lossy().to_string(),
+            "test-skill".to_string(),
+        )
+        .unwrap();
+
+        assert!(target_root.join("test-skill/SKILL.md").is_file());
+        assert_eq!(
+            fs::read_to_string(target_root.join("test-skill/references/details.md")).unwrap(),
+            "details"
+        );
+
+        let _ = fs::remove_dir_all(sandbox);
+    }
+
+    #[test]
+    fn copy_skill_rejects_parent_directory_escape() {
+        let sandbox = make_test_sandbox("copy-escape");
+        let source_root = sandbox.join("agents");
+        let target_root = sandbox.join("hermes");
+        fs::create_dir_all(source_root.join("test-skill")).unwrap();
+        fs::write(source_root.join("test-skill/SKILL.md"), "skill").unwrap();
+
+        let error = copy_skill(
+            source_root.to_string_lossy().to_string(),
+            "../test-skill".to_string(),
+            target_root.to_string_lossy().to_string(),
+            "test-skill".to_string(),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.code, SkillCopyErrorCode::OutsideRoot);
+
+        let _ = fs::remove_dir_all(sandbox);
+    }
+
+    #[test]
+    fn copy_skill_rejects_existing_target() {
+        let sandbox = make_test_sandbox("copy-existing-target");
+        let source_root = sandbox.join("agents");
+        let target_root = sandbox.join("hermes");
+        fs::create_dir_all(source_root.join("test-skill")).unwrap();
+        fs::write(source_root.join("test-skill/SKILL.md"), "source").unwrap();
+        fs::create_dir_all(target_root.join("test-skill")).unwrap();
+        fs::write(target_root.join("test-skill/SKILL.md"), "target").unwrap();
+
+        let error = copy_skill(
+            source_root.to_string_lossy().to_string(),
+            "test-skill".to_string(),
+            target_root.to_string_lossy().to_string(),
+            "test-skill".to_string(),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.code, SkillCopyErrorCode::TargetExists);
+        assert_eq!(
+            fs::read_to_string(target_root.join("test-skill/SKILL.md")).unwrap(),
+            "target"
+        );
+
+        let _ = fs::remove_dir_all(sandbox);
+    }
+
+    fn make_test_sandbox(name: &str) -> std::path::PathBuf {
+        let sandbox =
+            std::env::temp_dir().join(format!("rig-skill-copy-{}-{}", name, std::process::id()));
+        let _ = fs::remove_dir_all(&sandbox);
+        fs::create_dir_all(&sandbox).unwrap();
+        sandbox
     }
 }
