@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Data, Effect } from 'effect';
 import {
   type BucketType,
+  SkillCopyErrorSchema,
   SkillDeletionErrorSchema,
   SkillListingErrorSchema,
   SkillRootImportErrorSchema,
@@ -161,6 +162,49 @@ export const listSkills = Effect.fn('listSkills')(function* (root: SkillRoot) {
         cause: error,
       }),
   });
+});
+
+export class CopySkillError extends Data.TaggedError('CopySkillError')<{
+  kind: 'InvokeError' | 'SkillCopyError';
+  cause: unknown;
+}> {}
+
+export const copySkill = Effect.fn('copySkill')(function* ({
+  sourceRootPath,
+  sourceRelativePath,
+  targetRootPath,
+  targetRelativePath,
+}: {
+  sourceRootPath: string;
+  sourceRelativePath: string;
+  targetRootPath: string;
+  targetRelativePath: string;
+}) {
+  yield* Effect.tryPromise({
+    try: () =>
+      invoke<void>('copy_skill', {
+        sourceRootPath,
+        sourceRelativePath,
+        targetRootPath,
+        targetRelativePath,
+      }),
+    catch: error => error,
+  }).pipe(
+    Effect.catchAll(error => {
+      const copyError = SkillCopyErrorSchema.safeParse(error);
+
+      if (copyError.success) {
+        return Effect.fail(
+          new CopySkillError({
+            kind: 'SkillCopyError',
+            cause: copyError.data,
+          }),
+        );
+      }
+
+      return Effect.fail(new CopySkillError({ kind: 'InvokeError', cause: error }));
+    }),
+  );
 });
 
 export class RemoveSkillError extends Data.TaggedError('RemoveSkillError')<{

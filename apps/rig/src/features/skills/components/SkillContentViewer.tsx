@@ -1,6 +1,17 @@
-import { Badge, ScrollArea } from '@allin/ui';
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  ScrollArea,
+} from '@allin/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
+import { useMemo, useState } from 'react';
 import {
   getDefaultProviderSkill,
   providerLabels,
@@ -8,7 +19,8 @@ import {
   type Skill,
 } from '../skillModel';
 import { listSkillUsageEvents, listSkillUsages } from '../api';
-import type { SkillRoot, SkillUsageEvent } from '../types';
+import type { ProviderSkill, SkillProvider, SkillRoot, SkillUsageEvent } from '../types';
+import { useCopySkill } from '../useCopySkill';
 
 interface SkillContentViewerProps {
   skill: Skill | null;
@@ -18,6 +30,10 @@ interface SkillContentViewerProps {
 export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) => {
   const skillName = skill?.name ?? '';
   const defaultProviderSkill = skill ? getDefaultProviderSkill(skill) : null;
+  const copySkillMutation = useCopySkill();
+  const [copyTargetRoot, setCopyTargetRoot] = useState<SkillRoot | null>(null);
+  const [selectedSourceProvider, setSelectedSourceProvider] =
+    useState<SkillProvider | null>(null);
   const {
     data: recentEvents = [],
     error: eventsError,
@@ -47,6 +63,17 @@ export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) =>
   }
 
   const providerSkills = Object.values(skill.providerSkills);
+  const copySourceSkills = useMemo(
+    () =>
+      providerOrder.flatMap(provider => {
+        const providerSkill = skill.providerSkills[provider];
+        return providerSkill ? [providerSkill] : [];
+      }),
+    [skill],
+  );
+  const selectedSourceSkill = selectedSourceProvider
+    ? skill.providerSkills[selectedSourceProvider]
+    : (copySourceSkills[0] ?? null);
   const monthUsage = monthUsages.find(usage => usage.name === skill.name);
   const allUsage = allUsages.find(usage => usage.name === skill.name);
   const lastUsedAt = recentEvents[0]?.usedAt ?? allUsage?.lastUsedAt ?? null;
@@ -91,7 +118,15 @@ export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) =>
             />
           </div>
 
-          <ProviderMatrix skill={skill} roots={roots} />
+          <ProviderMatrix
+            skill={skill}
+            roots={roots}
+            onCopyToRoot={root => {
+              setCopyTargetRoot(root);
+              setSelectedSourceProvider(copySourceSkills[0]?.provider ?? null);
+            }}
+            copyingTargetRootId={copySkillMutation.copyingTargetRootId}
+          />
 
           <section className='rounded-xl border bg-card'>
             <div className='border-b px-4 py-3'>
@@ -139,6 +174,37 @@ export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) =>
           </section>
         </div>
       </ScrollArea>
+
+      <CopySkillDialog
+        open={copyTargetRoot !== null}
+        skillName={skill.name}
+        sourceSkills={copySourceSkills}
+        targetRoot={copyTargetRoot}
+        selectedSourceProvider={selectedSourceSkill?.provider ?? null}
+        isCopying={copySkillMutation.isCopying}
+        onOpenChange={isOpen => {
+          if (!isOpen) {
+            setCopyTargetRoot(null);
+            setSelectedSourceProvider(null);
+          }
+        }}
+        onSelectSourceProvider={setSelectedSourceProvider}
+        onCopy={() => {
+          if (!selectedSourceSkill || !copyTargetRoot) {
+            return;
+          }
+
+          copySkillMutation.copySkill(
+            { sourceSkill: selectedSourceSkill, targetRoot: copyTargetRoot },
+            {
+              onSuccess: () => {
+                setCopyTargetRoot(null);
+                setSelectedSourceProvider(null);
+              },
+            },
+          );
+        }}
+      />
     </div>
   );
 };
@@ -146,9 +212,13 @@ export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) =>
 const ProviderMatrix = ({
   skill,
   roots,
+  onCopyToRoot,
+  copyingTargetRootId,
 }: {
   skill: Skill;
   roots: SkillRoot[];
+  onCopyToRoot: (root: SkillRoot) => void;
+  copyingTargetRootId: string | null;
 }) => {
   const orderedRoots = roots.toSorted(
     (a, b) => providerOrder.indexOf(a.provider) - providerOrder.indexOf(b.provider),
@@ -172,7 +242,7 @@ const ProviderMatrix = ({
               key={root.id}
               className='flex items-start justify-between gap-4 px-4 py-3'
             >
-              <div className='min-w-0'>
+              <div className='min-w-0 flex-1'>
                 <div className='flex items-center gap-2'>
                   <p className='text-sm font-medium'>
                     {providerLabels[root.provider]}
@@ -187,11 +257,143 @@ const ProviderMatrix = ({
                     : root.path}
                 </p>
               </div>
+
+              {!providerSkill && (
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  disabled={copyingTargetRootId === root.id}
+                  onClick={() => onCopyToRoot(root)}
+                >
+                  {copyingTargetRootId === root.id ? 'Copying...' : 'Copy'}
+                </Button>
+              )}
             </div>
           );
         })}
       </div>
     </section>
+  );
+};
+
+const CopySkillDialog = ({
+  open,
+  skillName,
+  sourceSkills,
+  targetRoot,
+  selectedSourceProvider,
+  isCopying,
+  onOpenChange,
+  onSelectSourceProvider,
+  onCopy,
+}: {
+  open: boolean;
+  skillName: string;
+  sourceSkills: ProviderSkill[];
+  targetRoot: SkillRoot | null;
+  selectedSourceProvider: SkillProvider | null;
+  isCopying: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectSourceProvider: (provider: SkillProvider) => void;
+  onCopy: () => void;
+}) => {
+  const selectedSourceSkill = selectedSourceProvider
+    ? sourceSkills.find(sourceSkill => sourceSkill.provider === selectedSourceProvider)
+    : (sourceSkills[0] ?? null);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className='max-w-2xl'>
+        <DialogHeader>
+          <DialogTitle>Copy {skillName} to provider</DialogTitle>
+          <DialogDescription>
+            Copy one existing provider skill into the missing provider root for the current scope.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className='space-y-4'>
+          <label className='block space-y-2 text-sm'>
+            <span className='font-medium'>Source provider</span>
+            <select
+              className='h-10 w-full rounded-md border bg-background px-3 text-sm'
+              value={selectedSourceSkill?.provider ?? ''}
+              onChange={event =>
+                onSelectSourceProvider(event.target.value as SkillProvider)
+              }
+            >
+              {sourceSkills.map(sourceSkill => (
+                <option key={sourceSkill.provider} value={sourceSkill.provider}>
+                  {providerLabels[sourceSkill.provider]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <PathPreview
+            label='Source'
+            providerSkill={selectedSourceSkill}
+            fallback='Select a source provider'
+          />
+          <PathPreview
+            label='Target'
+            path={
+              targetRoot && selectedSourceSkill
+                ? `${targetRoot.path}/${selectedSourceSkill.relativePath}`
+                : (targetRoot?.path ?? 'Select a target provider')
+            }
+            fallback='Select a target provider'
+          />
+        </div>
+
+        <DialogFooter>
+          <Button
+            type='button'
+            variant='outline'
+            disabled={isCopying}
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type='button'
+            disabled={!selectedSourceSkill || !targetRoot || isCopying}
+            onClick={onCopy}
+          >
+            {isCopying
+              ? 'Copying...'
+              : `Copy to ${targetRoot ? providerLabels[targetRoot.provider] : 'provider'}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const PathPreview = ({
+  label,
+  providerSkill,
+  path,
+  fallback,
+}: {
+  label: string;
+  providerSkill?: ProviderSkill | null;
+  path?: string;
+  fallback: string;
+}) => {
+  const previewPath = providerSkill
+    ? `${providerSkill.rootPath}/${providerSkill.relativePath}`
+    : path;
+
+  return (
+    <div className='rounded-lg border bg-muted/30 p-3'>
+      <p className='text-xs font-medium uppercase tracking-wide text-muted-foreground'>
+        {label}
+      </p>
+      <p className='mt-1 break-all font-mono text-xs'>
+        {previewPath ?? fallback}
+      </p>
+    </div>
   );
 };
 
