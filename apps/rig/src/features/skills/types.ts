@@ -2,12 +2,27 @@ import { z } from 'zod';
 
 export const SkillRootKindSchema = z.enum(['default', 'repository']);
 
+export const SkillProviderSchema = z.enum([
+  'agents',
+  'claude',
+  'openCode',
+  'hermes',
+  'cursor',
+  'repository',
+]);
+
+export const SkillScopeKindSchema = z.enum(['global', 'repository']);
+
 export const SkillRootSchema = z.object({
   id: z.string(),
   path: z.string(),
   label: z.string(),
   exists: z.boolean(),
   kind: SkillRootKindSchema,
+  provider: SkillProviderSchema,
+  scopeId: z.string(),
+  scopeLabel: z.string(),
+  scopeKind: SkillScopeKindSchema,
 });
 
 export const SkillValidationErrorCodeSchema = z.enum([
@@ -93,6 +108,12 @@ export const SkillSchema = z.object({
   isValid: z.boolean(),
   validationError: SkillValidationErrorSchema.nullable(),
   updatedAt: z.string().nullable(),
+  provider: SkillProviderSchema,
+  scopeId: z.string(),
+  scopeLabel: z.string(),
+  scopeKind: SkillScopeKindSchema,
+  rootId: z.string(),
+  rootLabel: z.string(),
 });
 
 export const SkillUsageSchema = z.object({
@@ -114,6 +135,8 @@ export const SkillUsageSeriesSchema = z.object({
 
 export type SkillRoot = z.infer<typeof SkillRootSchema>;
 export type SkillRootKind = z.infer<typeof SkillRootKindSchema>;
+export type SkillProvider = z.infer<typeof SkillProviderSchema>;
+export type SkillScopeKind = z.infer<typeof SkillScopeKindSchema>;
 export type SkillValidationErrorCode = z.infer<
   typeof SkillValidationErrorCodeSchema
 >;

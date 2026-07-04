@@ -2,9 +2,9 @@ use std::fs;
 use std::path::{Component, Path};
 
 use super::models::{
-    BucketType, Skill, SkillDeletionError, SkillDeletionErrorCode, SkillListingError, SkillRoot,
-    SkillRootDefinition, SkillRootImportError, SkillRootKind, SkillUsage, SkillUsageError,
-    SkillUsageEvent, SkillUsageSeries, WindowType,
+    BucketType, Skill, SkillDeletionError, SkillDeletionErrorCode, SkillListingError,
+    SkillProvider, SkillRoot, SkillRootDefinition, SkillRootImportError, SkillRootKind,
+    SkillScopeKind, SkillUsage, SkillUsageError, SkillUsageEvent, SkillUsageSeries, WindowType,
 };
 use super::root_store::{
     import_skill_root_from_path, list_imported_skill_roots, remove_imported_skill_root,
@@ -21,19 +21,49 @@ const SKILL_USAGE_LOG_PATH: &str = "~/.rig/usage.jsonl";
 
 pub const SKILL_ROOT_DEFINITIONS: &[SkillRootDefinition] = &[
     SkillRootDefinition {
-        id: "agents-global",
+        id: "global-agents",
         path: "~/.agents/skills",
-        label: "Agents Global Skills",
+        label: "Agents",
+        provider: SkillProvider::Agents,
+        scope_id: "global",
+        scope_label: "Global",
+        scope_kind: SkillScopeKind::Global,
     },
     SkillRootDefinition {
-        id: "opencode-global",
+        id: "global-opencode",
         path: "~/.config/opencode/skills",
-        label: "OpenCode Global Skills",
+        label: "OpenCode",
+        provider: SkillProvider::OpenCode,
+        scope_id: "global",
+        scope_label: "Global",
+        scope_kind: SkillScopeKind::Global,
     },
     SkillRootDefinition {
-        id: "claude-global",
+        id: "global-claude",
         path: "~/.claude/skills",
-        label: "Claude Global Skills",
+        label: "Claude",
+        provider: SkillProvider::Claude,
+        scope_id: "global",
+        scope_label: "Global",
+        scope_kind: SkillScopeKind::Global,
+    },
+    SkillRootDefinition {
+        id: "global-hermes",
+        path: "~/.hermes/skills",
+        label: "Hermes",
+        provider: SkillProvider::Hermes,
+        scope_id: "global",
+        scope_label: "Global",
+        scope_kind: SkillScopeKind::Global,
+    },
+    SkillRootDefinition {
+        id: "global-cursor",
+        path: "~/.cursor/skills",
+        label: "Cursor",
+        provider: SkillProvider::Cursor,
+        scope_id: "global",
+        scope_label: "Global",
+        scope_kind: SkillScopeKind::Global,
     },
 ];
 
@@ -50,6 +80,10 @@ pub fn list_skill_roots(app: tauri::AppHandle) -> Vec<SkillRoot> {
                 label: definition.label.to_string(),
                 exists: path.exists(),
                 kind: SkillRootKind::Default,
+                provider: definition.provider.clone(),
+                scope_id: definition.scope_id.to_string(),
+                scope_label: definition.scope_label.to_string(),
+                scope_kind: definition.scope_kind.clone(),
             }
         })
         .collect::<Vec<_>>();
@@ -75,24 +109,29 @@ pub fn remove_skill_root(
 }
 
 #[tauri::command]
-pub fn list_skills(root_path: String) -> Result<Vec<Skill>, SkillListingError> {
-    let path = expand_path(root_path.as_str());
+pub fn list_skills(root: SkillRoot) -> Result<Vec<Skill>, SkillListingError> {
+    let path = expand_path(root.path.as_str());
 
     if !path.exists() {
         return Err(SkillListingError {
             code: SkillListingErrorCode::PathNotFound,
-            message: format!("Skill root path does not exist: {}", root_path),
+            message: format!("Skill root path does not exist: {}", root.path),
         });
     }
 
     if !path.is_dir() {
         return Err(SkillListingError {
             code: SkillListingErrorCode::NotDirectory,
-            message: format!("Skill root path is not a directory: {}", root_path),
+            message: format!("Skill root path is not a directory: {}", root.path),
         });
     }
 
-    return list_skills_from_root(&path);
+    let root = SkillRoot {
+        path: path.to_string_lossy().to_string(),
+        ..root
+    };
+
+    return list_skills_from_root(&root);
 }
 
 #[tauri::command]
@@ -197,4 +236,24 @@ pub fn list_skill_usages_tendency(
         window.unwrap_or(WindowType::Week),
         bucket_type.unwrap_or(BucketType::Hour),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_roots_include_hermes_global_provider_root() {
+        let hermes_root = SKILL_ROOT_DEFINITIONS
+            .iter()
+            .find(|definition| definition.id == "global-hermes")
+            .expect("Hermes global root should be registered");
+
+        assert_eq!(hermes_root.path, "~/.hermes/skills");
+        assert_eq!(hermes_root.label, "Hermes");
+        assert_eq!(hermes_root.provider, SkillProvider::Hermes);
+        assert_eq!(hermes_root.scope_id, "global");
+        assert_eq!(hermes_root.scope_label, "Global");
+        assert_eq!(hermes_root.scope_kind, SkillScopeKind::Global);
+    }
 }

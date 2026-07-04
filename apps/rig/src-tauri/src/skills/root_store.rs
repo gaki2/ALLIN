@@ -4,7 +4,8 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 use super::models::{
-    ImportedSkillRoot, SkillRoot, SkillRootImportError, SkillRootImportErrorCode, SkillRootKind,
+    ImportedSkillRoot, SkillProvider, SkillRoot, SkillRootImportError, SkillRootImportErrorCode,
+    SkillRootKind, SkillScopeKind,
 };
 
 const SKILL_ROOTS_FILE_NAME: &str = "skill-roots.json";
@@ -148,12 +149,20 @@ fn skill_roots_file_path(app: &AppHandle) -> Result<PathBuf, SkillRootImportErro
 
 fn imported_skill_root_to_skill_root(root: ImportedSkillRoot) -> SkillRoot {
     let path = PathBuf::from(&root.path);
+    let scope_label = path
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| root.label.clone());
 
     SkillRoot {
         id: root.id,
-        path: root.path,
+        path: root.path.clone(),
         label: root.label,
         exists: path.exists(),
         kind: SkillRootKind::Repository,
+        provider: SkillProvider::Repository,
+        scope_id: root.path,
+        scope_label,
+        scope_kind: SkillScopeKind::Repository,
     }
 }

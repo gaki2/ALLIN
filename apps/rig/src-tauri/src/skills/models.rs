@@ -2,6 +2,28 @@ pub struct SkillRootDefinition {
     pub id: &'static str,
     pub path: &'static str,
     pub label: &'static str,
+    pub provider: SkillProvider,
+    pub scope_id: &'static str,
+    pub scope_label: &'static str,
+    pub scope_kind: SkillScopeKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SkillProvider {
+    Agents,
+    Claude,
+    OpenCode,
+    Hermes,
+    Cursor,
+    Repository,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SkillScopeKind {
+    Global,
+    Repository,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -19,6 +41,10 @@ pub struct SkillRoot {
     pub label: String,
     pub exists: bool,
     pub kind: SkillRootKind,
+    pub provider: SkillProvider,
+    pub scope_id: String,
+    pub scope_label: String,
+    pub scope_kind: SkillScopeKind,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -59,6 +85,12 @@ pub struct Skill {
     pub is_valid: bool,
     pub validation_error: Option<SkillValidationError>,
     pub updated_at: Option<String>,
+    pub provider: SkillProvider,
+    pub scope_id: String,
+    pub scope_label: String,
+    pub scope_kind: SkillScopeKind,
+    pub root_id: String,
+    pub root_label: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

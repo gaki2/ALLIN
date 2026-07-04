@@ -11,6 +11,7 @@ import {
   SkillUsageEventSchema,
   SkillUsageSchema,
   SkillUsageSeriesSchema,
+  type SkillRoot,
   type WindowType,
 } from './types';
 
@@ -116,9 +117,9 @@ export class ListSkillsError extends Data.TaggedError('ListSkillsError')<{
 // some users don't have claude folder, so we ignore these errors
 const ignoredSkillListingErrorCodes = new Set(['pathNotFound', 'notDirectory']);
 
-export const listSkills = Effect.fn('listSkills')(function* (rootPath: string) {
+export const listSkills = Effect.fn('listSkills')(function* (root: SkillRoot) {
   const result = yield* Effect.tryPromise({
-    try: () => invoke<unknown>('list_skills', { rootPath }),
+    try: () => invoke<unknown>('list_skills', { root }),
     catch: error => error,
   }).pipe(
     Effect.catchAll(error => {
@@ -135,7 +136,7 @@ export const listSkills = Effect.fn('listSkills')(function* (rootPath: string) {
         return Effect.fail(
           new ListSkillsError({
             kind: 'SkillListingError',
-            rootPath,
+            rootPath: root.path,
             cause: listingError.data,
           }),
         );
@@ -144,7 +145,7 @@ export const listSkills = Effect.fn('listSkills')(function* (rootPath: string) {
       return Effect.fail(
         new ListSkillsError({
           kind: 'InvokeError',
-          rootPath,
+          rootPath: root.path,
           cause: error,
         }),
       );
@@ -156,7 +157,7 @@ export const listSkills = Effect.fn('listSkills')(function* (rootPath: string) {
     catch: error =>
       new ListSkillsError({
         kind: 'ZodParseError',
-        rootPath,
+        rootPath: root.path,
         cause: error,
       }),
   });
