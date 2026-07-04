@@ -5,16 +5,16 @@ import { copySkill as copySkillApi, CopySkillError } from './api';
 import type { ProviderSkill, SkillCopyError, SkillRoot } from './types';
 import { skillRootsQueryKey } from './useSkillRoots';
 
-interface CopySkillInput {
+interface InstallSkillInput {
   sourceSkill: ProviderSkill;
   targetRoot: SkillRoot;
 }
 
-export const useCopySkill = () => {
+export const useInstallSkill = () => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: ({ sourceSkill, targetRoot }: CopySkillInput) =>
+    mutationFn: ({ sourceSkill, targetRoot }: InstallSkillInput) =>
       Effect.runPromise(
         copySkillApi({
           sourceRootPath: sourceSkill.rootPath,
@@ -27,23 +27,23 @@ export const useCopySkill = () => {
       void queryClient.invalidateQueries({ queryKey: ['skills'] });
       void queryClient.invalidateQueries({ queryKey: skillRootsQueryKey });
 
-      toast.success(`${sourceSkill.name} copied to ${targetRoot.label}`, {
-        description: 'The skill folder was copied into the selected provider root.',
+      toast.success(`${sourceSkill.name} installed to ${targetRoot.label}`, {
+        description: 'The skill is now available in the selected provider.',
       });
     },
     onError: (error, { sourceSkill, targetRoot }) => {
       const copyError = getSkillCopyError(error);
 
-      toast.error(`Failed to copy ${sourceSkill.name} to ${targetRoot.label}`, {
+      toast.error(`Failed to install ${sourceSkill.name} to ${targetRoot.label}`, {
         description: copyError?.message ?? getErrorMessage(error),
       });
     },
   });
 
   return {
-    copySkill: mutation.mutate,
-    isCopying: mutation.isPending,
-    copyingTargetRootId: mutation.variables?.targetRoot.id ?? null,
+    installSkill: mutation.mutate,
+    isInstalling: mutation.isPending,
+    installingTargetRootId: mutation.variables?.targetRoot.id ?? null,
   };
 };
 
