@@ -14,7 +14,7 @@ pub fn list_imported_skill_roots(app: &AppHandle) -> Vec<SkillRoot> {
     load_imported_skill_roots(app)
         .unwrap_or_default()
         .into_iter()
-        .map(imported_skill_root_to_skill_root)
+        .flat_map(repository_provider_roots)
         .collect()
 }
 
@@ -50,7 +50,7 @@ pub fn import_skill_root_from_path(
     let mut imported_roots = load_imported_skill_roots(app)?;
 
     if let Some(existing) = imported_roots.iter().find(|root| root.path == path) {
-        return Ok(imported_skill_root_to_skill_root(existing.clone()));
+        return Ok(repository_provider_root(existing.clone()));
     }
 
     if imported_roots.iter().any(|root| root.id == label) {
@@ -69,7 +69,7 @@ pub fn import_skill_root_from_path(
     imported_roots.push(imported.clone());
     save_imported_skill_roots(app, &imported_roots)?;
 
-    Ok(imported_skill_root_to_skill_root(imported))
+    Ok(repository_provider_root(imported))
 }
 
 pub fn remove_imported_skill_root(
@@ -147,22 +147,76 @@ fn skill_roots_file_path(app: &AppHandle) -> Result<PathBuf, SkillRootImportErro
     Ok(app_data_dir.join(SKILL_ROOTS_FILE_NAME))
 }
 
-fn imported_skill_root_to_skill_root(root: ImportedSkillRoot) -> SkillRoot {
-    let path = PathBuf::from(&root.path);
-    let scope_label = path
+struct ProviderRootTemplate {
+    provider: SkillProvider,
+    id_suffix: &'static str,
+    label: &'static str,
+    relative_path: &'static str,
+}
+
+const PROVIDER_ROOT_TEMPLATES: &[ProviderRootTemplate] = &[
+    ProviderRootTemplate {
+        provider: SkillProvider::Agents,
+        id_suffix: "agents",
+        label: "Agents",
+        relative_path: ".agents/skills",
+    },
+    ProviderRootTemplate {
+        provider: SkillProvider::Claude,
+        id_suffix: "claude",
+        label: "Claude",
+        relative_path: ".claude/skills",
+    },
+    ProviderRootTemplate {
+        provider: SkillProvider::OpenCode,
+        id_suffix: "opencode",
+        label: "OpenCode",
+        relative_path: ".opencode/skills",
+    },
+    ProviderRootTemplate {
+        provider: SkillProvider::Hermes,
+        id_suffix: "hermes",
+        label: "Hermes",
+        relative_path: ".hermes/skills",
+    },
+    ProviderRootTemplate {
+        provider: SkillProvider::Cursor,
+        id_suffix: "cursor",
+        label: "Cursor",
+        relative_path: ".cursor/skills",
+    },
+];
+
+fn repository_provider_root(root: ImportedSkillRoot) -> SkillRoot {
+    repository_provider_roots(root)
+        .into_iter()
+        .next()
+        .expect("repository provider templates should not be empty")
+}
+
+fn repository_provider_roots(root: ImportedSkillRoot) -> Vec<SkillRoot> {
+    let repo_path = PathBuf::from(&root.path);
+    let scope_label = repo_path
         .file_name()
         .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_else(|| root.label.clone());
 
-    SkillRoot {
-        id: root.id,
-        path: root.path.clone(),
-        label: root.label,
-        exists: path.exists(),
-        kind: SkillRootKind::Repository,
-        provider: SkillProvider::Repository,
-        scope_id: root.path,
-        scope_label,
-        scope_kind: SkillScopeKind::Repository,
-    }
+    PROVIDER_ROOT_TEMPLATES
+        .iter()
+        .map(|template| {
+            let path = repo_path.join(template.relative_path);
+
+            SkillRoot {
+                id: format!("repo-{}-{}", root.id, template.id_suffix),
+                path: path.to_string_lossy().to_string(),
+                label: template.label.to_string(),
+                exists: path.exists(),
+                kind: SkillRootKind::Repository,
+                provider: template.provider.clone(),
+                scope_id: root.path.clone(),
+                scope_label: scope_label.clone(),
+                scope_kind: SkillScopeKind::Repository,
+            }
+        })
+        .collect()
 }

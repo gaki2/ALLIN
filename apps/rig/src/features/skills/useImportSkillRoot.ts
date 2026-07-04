@@ -19,9 +19,12 @@ export const useImportSkillRoot = ({
       onImported(importedRoot);
       void queryClient.invalidateQueries({ queryKey: skillRootsQueryKey });
       posthog.capture('repository_imported', {
-        repository_id: importedRoot.id,
-        repository_label: importedRoot.label,
-        repository_kind: importedRoot.kind,
+        repository_id: importedRoot.scopeId,
+        repository_label: importedRoot.scopeLabel,
+        repository_kind: importedRoot.scopeKind,
+        scope_id: importedRoot.scopeId,
+        scope_label: importedRoot.scopeLabel,
+        scope_kind: importedRoot.scopeKind,
       });
     },
   });

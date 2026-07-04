@@ -5,10 +5,10 @@ import { DashboardRoot } from '@/features/dashboard/components/DashboardRoot';
 import { PluginSetupDialog } from '@/features/plugins/components/PluginSetupDialog';
 import { usePluginSetup } from '@/features/plugins/usePluginSetup';
 import { ResourceRoot } from '@/features/resources/components/ResourceRoot';
-import { RepositorySelector } from '@/features/skills/components/RepositorySelector';
+import { ScopeSelector } from '@/features/skills/components/ScopeSelector';
 import { SkillRoot } from '@/features/skills/components/SkillRoot';
 import { useImportSkillRoot } from '@/features/skills/useImportSkillRoot';
-import { useSkillRepositorySelection } from '@/features/skills/useSkillRepositorySelection';
+import { useSkillScopeSelection } from '@/features/skills/useSkillScopeSelection';
 import { useSkillRoots } from '@/features/skills/useSkillRoots';
 import { HeaderLayout } from '@/layouts/HeaderLayout';
 import { NavigationRail } from './NavigationRail';
@@ -18,21 +18,20 @@ export const Root = () => {
   const pluginSetup = usePluginSetup();
 
   const { data: roots = [] } = useSkillRoots();
-  const repositorySelection = useSkillRepositorySelection({
+  const scopeSelection = useSkillScopeSelection({
     roots,
-    onRepositoryChange: () => undefined,
+    onScopeChange: () => undefined,
   });
   const importSkillRoot = useImportSkillRoot({
-    onImported: importedRoot =>
-      repositorySelection.selectRepository(importedRoot.id),
+    onImported: importedRoot => scopeSelection.selectScope(importedRoot.scopeId),
   });
   const renderCurrentPath = () => {
     switch (navigation.currentPath) {
       case appPaths.skills:
         return (
           <SkillRoot
-            key={repositorySelection.selectedRepositoryId}
-            roots={repositorySelection.visibleRoots}
+            key={scopeSelection.selectedScopeId}
+            roots={scopeSelection.visibleRoots}
           />
         );
       case appPaths.agents:
@@ -52,7 +51,7 @@ export const Root = () => {
           />
         );
       case appPaths.dashboard:
-        return <DashboardRoot roots={repositorySelection.visibleRoots} />;
+        return <DashboardRoot roots={scopeSelection.visibleRoots} />;
     }
   };
 
@@ -60,14 +59,14 @@ export const Root = () => {
     <main className='flex h-dvh flex-col overflow-hidden bg-background text-foreground'>
       <HeaderLayout>
         <div className='flex w-full items-center justify-between pr-4'>
-          <RepositorySelector
+          <ScopeSelector
             roots={roots}
-            selectedRepositoryId={repositorySelection.selectedRepositoryId}
-            isOpen={repositorySelection.isOpen}
+            selectedScopeId={scopeSelection.selectedScopeId}
+            isOpen={scopeSelection.isOpen}
             isImporting={importSkillRoot.isImporting}
-            onOpenChange={repositorySelection.setIsOpen}
-            onSelectRepository={repositorySelection.selectRepository}
-            onImportRepository={importSkillRoot.importFromFolder}
+            onOpenChange={scopeSelection.setIsOpen}
+            onSelectScope={scopeSelection.selectScope}
+            onImportScope={importSkillRoot.importFromFolder}
           />
           <div className='flex items-center gap-2'>
             <Button
