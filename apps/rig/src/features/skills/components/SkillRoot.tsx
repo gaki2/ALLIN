@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { ContentLayout } from '@/layouts/ContentLayout';
 import { SidebarLayout } from '@/layouts/SidebarLayout';
-import type { Skill, SkillRoot as SkillRootModel } from '../types';
+import type { Skill } from '../skillModel';
+import type { SkillRoot as SkillRootModel } from '../types';
+import { getProviderSkills } from '../skillModel';
 import { getSkillIdentity, useRemoveSkill } from '../useRemoveSkill';
 import { SkillContentViewer } from './SkillContentViewer';
 import { SkillSidebar } from './SkillSidebar';
@@ -16,7 +18,10 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
     onRemoved: removedSkill => {
       setSelectedSkill(currentSkill =>
         currentSkill &&
-        getSkillIdentity(currentSkill) === getSkillIdentity(removedSkill)
+        getProviderSkills(currentSkill).some(
+          providerSkill =>
+            getSkillIdentity(providerSkill) === getSkillIdentity(removedSkill),
+        )
           ? null
           : currentSkill,
       );
@@ -36,7 +41,7 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
       </SidebarLayout>
 
       <ContentLayout>
-        <SkillContentViewer skill={selectedSkill} />
+        <SkillContentViewer skill={selectedSkill} roots={roots} />
       </ContentLayout>
     </div>
   );

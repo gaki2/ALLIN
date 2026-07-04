@@ -18,7 +18,13 @@ import {
 import { Trash2 } from 'lucide-react';
 import posthog from 'posthog-js';
 import { useState } from 'react';
-import type { Skill, SkillUsage, SkillUsageSeries } from '../types';
+import {
+  getProviderSkills,
+  providerLabels,
+  providerOrder,
+  type Skill,
+} from '../skillModel';
+import type { ProviderSkill, SkillUsage, SkillUsageSeries } from '../types';
 import { getSkillIdentity } from '../useRemoveSkill';
 import { SkillUsageSparkline } from './SkillUsageSparkline';
 
@@ -35,7 +41,7 @@ export interface SkillListProps {
   isLoading: boolean;
   error: string | null;
   onSelectSkill: (skill: Skill) => void;
-  onRemoveSkill: (skill: Skill) => void;
+  onRemoveSkill: (skill: ProviderSkill) => void;
   removingSkillId: string | null;
 }
 
@@ -50,9 +56,8 @@ export const SkillList = ({
   onRemoveSkill,
   removingSkillId,
 }: SkillListProps) => {
-  const [skillPendingRemoval, setSkillPendingRemoval] = useState<Skill | null>(
-    null,
-  );
+  const [skillPendingRemoval, setSkillPendingRemoval] =
+    useState<ProviderSkill | null>(null);
 
   if (isLoading) {
     return (
@@ -105,22 +110,23 @@ export const SkillList = ({
         <div className='space-y-1'>
           {sortedSkills.length === 0 && (
             <div className='p-1 text-sm text-muted-foreground'>
-              No skills found in this root.
+              No skills found in this scope.
             </div>
           )}
 
           {sortedSkills.map(skill => {
-            const skillIdentity = getSkillIdentity(skill);
-            const isSelected = selectedSkill
-              ? getSkillIdentity(selectedSkill) === skillIdentity
-              : false;
+            const providerSkills = getProviderSkills(skill);
+            const isSelected = selectedSkill?.id === skill.id;
             const usage = usageByName.get(skill.name);
             const tendency = tendencyByName.get(skill.name);
             const count = usage?.count ?? 0;
-            const isRemovingSkill = removingSkillId === skillIdentity;
+            const isRemovingSkill = providerSkills.some(
+              providerSkill =>
+                removingSkillId === getSkillIdentity(providerSkill),
+            );
 
             return (
-              <ContextMenu key={skillIdentity}>
+              <ContextMenu key={skill.id}>
                 <ContextMenuTrigger asChild>
                   <button
                     type='button'
@@ -130,9 +136,12 @@ export const SkillList = ({
                       posthog.capture('skill_selected', {
                         skill_name: skill.name,
                         skill_description: skill.description,
-                        skill_is_valid: skill.isValid,
+                        skill_is_valid: providerSkills.every(
+                          providerSkill => providerSkill.isValid,
+                        ),
                         skill_usage_count:
                           usageByName.get(skill.name)?.count ?? 0,
+                        skill_providers: skill.providers,
                       });
                     }}
                     className={cn(
@@ -152,7 +161,7 @@ export const SkillList = ({
                         <span className='truncate text-sm font-medium'>
                           {skill.name}
                         </span>
-                        {!skill.isValid && (
+                        {providerSkills.some(providerSkill => !providerSkill.isValid) && (
                           <Badge
                             variant='destructive'
                             className='h-5 px-1.5 text-[10px]'
@@ -163,7 +172,7 @@ export const SkillList = ({
                       </span>
 
                       <span className='mt-1 line-clamp-1 text-xs text-muted-foreground'>
-                        {skill.description || skill.relativePath}
+                        {formatProviders(skill)}
                       </span>
                     </span>
 
@@ -181,15 +190,18 @@ export const SkillList = ({
                   </button>
                 </ContextMenuTrigger>
 
-                <ContextMenuContent alignOffset={4} className='w-40'>
-                  <ContextMenuItem
-                    variant='destructive'
-                    disabled={isRemovingSkill}
-                    onSelect={() => setSkillPendingRemoval(skill)}
-                  >
-                    <Trash2 />
-                    Delete skill
-                  </ContextMenuItem>
+                <ContextMenuContent alignOffset={4} className='w-48'>
+                  {providerSkills.map(providerSkill => (
+                    <ContextMenuItem
+                      key={getSkillIdentity(providerSkill)}
+                      variant='destructive'
+                      disabled={isRemovingSkill}
+                      onSelect={() => setSkillPendingRemoval(providerSkill)}
+                    >
+                      <Trash2 />
+                      Delete from {providerLabels[providerSkill.provider]}
+                    </ContextMenuItem>
+                  ))}
                 </ContextMenuContent>
               </ContextMenu>
             );
@@ -213,7 +225,8 @@ export const SkillList = ({
               <span className='font-medium text-foreground'>
                 {skillPendingRemoval?.name}
               </span>{' '}
-              from disk. This action cannot be undone.
+              from {skillPendingRemoval ? providerLabels[skillPendingRemoval.provider] : 'disk'}.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -233,4 +246,11 @@ export const SkillList = ({
       </AlertDialog>
     </div>
   );
+};
+
+const formatProviders = (skill: Skill) => {
+  return skill.providers
+    .toSorted((a, b) => providerOrder.indexOf(a) - providerOrder.indexOf(b))
+    .map(provider => providerLabels[provider])
+    .join(' · ');
 };

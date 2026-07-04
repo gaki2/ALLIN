@@ -1,11 +1,23 @@
 import { Badge, ScrollArea } from '@allin/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
+import {
+  getDefaultProviderSkill,
+  providerLabels,
+  providerOrder,
+  type Skill,
+} from '../skillModel';
 import { listSkillUsageEvents, listSkillUsages } from '../api';
-import type { Skill, SkillUsageEvent } from '../types';
+import type { SkillRoot, SkillUsageEvent } from '../types';
 
-export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
+interface SkillContentViewerProps {
+  skill: Skill | null;
+  roots: SkillRoot[];
+}
+
+export const SkillContentViewer = ({ skill, roots }: SkillContentViewerProps) => {
   const skillName = skill?.name ?? '';
+  const defaultProviderSkill = skill ? getDefaultProviderSkill(skill) : null;
   const {
     data: recentEvents = [],
     error: eventsError,
@@ -26,7 +38,7 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
     enabled: skill !== null,
   });
 
-  if (!skill) {
+  if (!skill || !defaultProviderSkill) {
     return (
       <div className='flex h-full items-center justify-center text-sm text-muted-foreground'>
         Select a skill to view its usage.
@@ -34,6 +46,7 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
     );
   }
 
+  const providerSkills = Object.values(skill.providerSkills);
   const monthUsage = monthUsages.find(usage => usage.name === skill.name);
   const allUsage = allUsages.find(usage => usage.name === skill.name);
   const lastUsedAt = recentEvents[0]?.usedAt ?? allUsage?.lastUsedAt ?? null;
@@ -45,16 +58,18 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
           <h1 className='truncate text-lg font-semibold tracking-tight'>
             {skill.name}
           </h1>
-          {!skill.isValid && <Badge variant='destructive'>Invalid</Badge>}
+          {providerSkills.some(providerSkill => !providerSkill.isValid) && (
+            <Badge variant='destructive'>Invalid</Badge>
+          )}
         </div>
 
         <p className='mt-1 max-w-5xl font-mono text-sm text-muted-foreground'>
           {skill.description}
         </p>
 
-        {skill.validationError && (
+        {defaultProviderSkill.validationError && (
           <p className='mt-2 text-sm text-destructive'>
-            {skill.validationError.message}
+            {defaultProviderSkill.validationError.message}
           </p>
         )}
       </div>
@@ -75,6 +90,8 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
               value={formatLastFired(lastUsedAt)}
             />
           </div>
+
+          <ProviderMatrix skill={skill} roots={roots} />
 
           <section className='rounded-xl border bg-card'>
             <div className='border-b px-4 py-3'>
@@ -123,6 +140,58 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
         </div>
       </ScrollArea>
     </div>
+  );
+};
+
+const ProviderMatrix = ({
+  skill,
+  roots,
+}: {
+  skill: Skill;
+  roots: SkillRoot[];
+}) => {
+  const orderedRoots = roots.toSorted(
+    (a, b) => providerOrder.indexOf(a.provider) - providerOrder.indexOf(b.provider),
+  );
+
+  return (
+    <section className='rounded-xl border bg-card'>
+      <div className='border-b px-4 py-3'>
+        <h2 className='text-sm font-semibold'>Provider inventory</h2>
+        <p className='mt-1 text-xs text-muted-foreground'>
+          Where this skill exists in the current scope.
+        </p>
+      </div>
+
+      <div className='divide-y'>
+        {orderedRoots.map(root => {
+          const providerSkill = skill.providerSkills[root.provider];
+
+          return (
+            <div
+              key={root.id}
+              className='flex items-start justify-between gap-4 px-4 py-3'
+            >
+              <div className='min-w-0'>
+                <div className='flex items-center gap-2'>
+                  <p className='text-sm font-medium'>
+                    {providerLabels[root.provider]}
+                  </p>
+                  <Badge variant={providerSkill ? 'secondary' : 'outline'}>
+                    {providerSkill ? 'Installed' : 'Missing'}
+                  </Badge>
+                </div>
+                <p className='mt-1 truncate font-mono text-xs text-muted-foreground'>
+                  {providerSkill
+                    ? `${providerSkill.rootPath}/${providerSkill.relativePath}`
+                    : root.path}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 };
 
