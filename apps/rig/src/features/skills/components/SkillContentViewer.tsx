@@ -1,11 +1,25 @@
 import { Badge, ScrollArea } from '@allin/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
+import {
+  providerLabels,
+  providerOrder,
+  type SkillGroup,
+} from '../groupSkills';
 import { listSkillUsageEvents, listSkillUsages } from '../api';
-import type { Skill, SkillUsageEvent } from '../types';
+import type { SkillRoot, SkillUsageEvent } from '../types';
 
-export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
-  const skillName = skill?.name ?? '';
+interface SkillContentViewerProps {
+  skillGroup: SkillGroup | null;
+  roots: SkillRoot[];
+}
+
+export const SkillContentViewer = ({
+  skillGroup,
+  roots,
+}: SkillContentViewerProps) => {
+  const skillName = skillGroup?.name ?? '';
+  const primarySkill = skillGroup?.primarySkill ?? null;
   const {
     data: recentEvents = [],
     error: eventsError,
@@ -13,20 +27,20 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
   } = useQuery({
     queryKey: ['skill-usage-events', skillName, 20],
     queryFn: () => Effect.runPromise(listSkillUsageEvents(skillName, 20)),
-    enabled: skill !== null,
+    enabled: skillGroup !== null,
   });
   const { data: monthUsages = [] } = useQuery({
     queryKey: ['skill-usages', 'month'],
     queryFn: () => Effect.runPromise(listSkillUsages('month')),
-    enabled: skill !== null,
+    enabled: skillGroup !== null,
   });
   const { data: allUsages = [] } = useQuery({
     queryKey: ['skill-usages', 'all'],
     queryFn: () => Effect.runPromise(listSkillUsages('all')),
-    enabled: skill !== null,
+    enabled: skillGroup !== null,
   });
 
-  if (!skill) {
+  if (!skillGroup || !primarySkill) {
     return (
       <div className='flex h-full items-center justify-center text-sm text-muted-foreground'>
         Select a skill to view its usage.
@@ -34,8 +48,8 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
     );
   }
 
-  const monthUsage = monthUsages.find(usage => usage.name === skill.name);
-  const allUsage = allUsages.find(usage => usage.name === skill.name);
+  const monthUsage = monthUsages.find(usage => usage.name === skillGroup.name);
+  const allUsage = allUsages.find(usage => usage.name === skillGroup.name);
   const lastUsedAt = recentEvents[0]?.usedAt ?? allUsage?.lastUsedAt ?? null;
 
   return (
@@ -43,18 +57,20 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
       <div className='shrink-0 border-b px-6 py-4'>
         <div className='flex min-w-0 items-center gap-2'>
           <h1 className='truncate text-lg font-semibold tracking-tight'>
-            {skill.name}
+            {skillGroup.name}
           </h1>
-          {!skill.isValid && <Badge variant='destructive'>Invalid</Badge>}
+          {skillGroup.instances.some(skill => !skill.isValid) && (
+            <Badge variant='destructive'>Invalid</Badge>
+          )}
         </div>
 
         <p className='mt-1 max-w-5xl font-mono text-sm text-muted-foreground'>
-          {skill.description}
+          {skillGroup.description}
         </p>
 
-        {skill.validationError && (
+        {primarySkill.validationError && (
           <p className='mt-2 text-sm text-destructive'>
-            {skill.validationError.message}
+            {primarySkill.validationError.message}
           </p>
         )}
       </div>
@@ -75,6 +91,8 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
               value={formatLastFired(lastUsedAt)}
             />
           </div>
+
+          <ProviderMatrix skillGroup={skillGroup} roots={roots} />
 
           <section className='rounded-xl border bg-card'>
             <div className='border-b px-4 py-3'>
@@ -123,6 +141,61 @@ export const SkillContentViewer = ({ skill }: { skill: Skill | null }) => {
         </div>
       </ScrollArea>
     </div>
+  );
+};
+
+const ProviderMatrix = ({
+  skillGroup,
+  roots,
+}: {
+  skillGroup: SkillGroup;
+  roots: SkillRoot[];
+}) => {
+  const instanceByProvider = new Map(
+    skillGroup.instances.map(instance => [instance.provider, instance]),
+  );
+  const orderedRoots = roots.toSorted(
+    (a, b) => providerOrder.indexOf(a.provider) - providerOrder.indexOf(b.provider),
+  );
+
+  return (
+    <section className='rounded-xl border bg-card'>
+      <div className='border-b px-4 py-3'>
+        <h2 className='text-sm font-semibold'>Provider inventory</h2>
+        <p className='mt-1 text-xs text-muted-foreground'>
+          Where this skill exists in the current scope.
+        </p>
+      </div>
+
+      <div className='divide-y'>
+        {orderedRoots.map(root => {
+          const instance = instanceByProvider.get(root.provider);
+
+          return (
+            <div
+              key={root.id}
+              className='flex items-start justify-between gap-4 px-4 py-3'
+            >
+              <div className='min-w-0'>
+                <div className='flex items-center gap-2'>
+                  <p className='text-sm font-medium'>
+                    {providerLabels[root.provider]}
+                  </p>
+                  <Badge variant={instance ? 'secondary' : 'outline'}>
+                    {instance ? 'Installed' : 'Missing'}
+                  </Badge>
+                </div>
+                <p className='mt-1 truncate font-mono text-xs text-muted-foreground'>
+                  {instance
+                    ? `${instance.rootPath}/${instance.relativePath}`
+                    : root.path}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 };
 

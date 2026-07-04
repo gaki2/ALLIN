@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ContentLayout } from '@/layouts/ContentLayout';
 import { SidebarLayout } from '@/layouts/SidebarLayout';
-import type { Skill, SkillRoot as SkillRootModel } from '../types';
+import type { SkillRoot as SkillRootModel } from '../types';
+import { groupSkills, type SkillGroup } from '../groupSkills';
 import { getSkillIdentity, useRemoveSkill } from '../useRemoveSkill';
 import { SkillContentViewer } from './SkillContentViewer';
 import { SkillSidebar } from './SkillSidebar';
@@ -11,14 +12,17 @@ interface SkillRootProps {
 }
 
 export const SkillRoot = ({ roots }: SkillRootProps) => {
-  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
+  const [selectedSkillGroup, setSelectedSkillGroup] = useState<SkillGroup | null>(
+    null,
+  );
   const { removeSkill, removingSkillId } = useRemoveSkill({
     onRemoved: removedSkill => {
-      setSelectedSkill(currentSkill =>
-        currentSkill &&
-        getSkillIdentity(currentSkill) === getSkillIdentity(removedSkill)
+      setSelectedSkillGroup(currentGroup =>
+        currentGroup?.instances.some(
+          skill => getSkillIdentity(skill) === getSkillIdentity(removedSkill),
+        )
           ? null
-          : currentSkill,
+          : currentGroup,
       );
     },
   });
@@ -28,15 +32,18 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
       <SidebarLayout>
         <SkillSidebar
           roots={roots}
-          selectedSkill={selectedSkill}
-          onSelectSkill={setSelectedSkill}
+          selectedSkillGroup={selectedSkillGroup}
+          onSelectSkillGroup={setSelectedSkillGroup}
           onRemoveSkill={removeSkill}
           removingSkillId={removingSkillId}
         />
       </SidebarLayout>
 
       <ContentLayout>
-        <SkillContentViewer skill={selectedSkill} />
+        <SkillContentViewer
+          skillGroup={selectedSkillGroup}
+          roots={roots}
+        />
       </ContentLayout>
     </div>
   );

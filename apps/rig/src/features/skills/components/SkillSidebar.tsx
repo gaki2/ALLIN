@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
+import { groupSkills, type SkillGroup } from '../groupSkills';
 import { listSkillUsages, listSkillUsagesTendency } from '../api';
 import type { Skill, SkillRoot } from '../types';
 import { useFetchSkills } from '../useFetchSkills';
@@ -7,20 +8,21 @@ import { SkillList } from './SkillList';
 
 interface SkillSidebarProps {
   roots: SkillRoot[];
-  selectedSkill: Skill | null;
-  onSelectSkill: (skill: Skill) => void;
+  selectedSkillGroup: SkillGroup | null;
+  onSelectSkillGroup: (skillGroup: SkillGroup) => void;
   onRemoveSkill: (skill: Skill) => void;
   removingSkillId: string | null;
 }
 
 export const SkillSidebar = ({
   roots,
-  selectedSkill,
-  onSelectSkill,
+  selectedSkillGroup,
+  onSelectSkillGroup,
   onRemoveSkill,
   removingSkillId,
 }: SkillSidebarProps) => {
   const { skills, isLoading, error } = useFetchSkills(roots);
+  const skillGroups = groupSkills(skills);
 
   const { data: skillUsages = [] } = useQuery({
     queryKey: ['skill-usages', 'month'],
@@ -34,13 +36,13 @@ export const SkillSidebar = ({
 
   return (
     <SkillList
-      skills={skills}
-      selectedSkill={selectedSkill}
+      skillGroups={skillGroups}
+      selectedSkillGroup={selectedSkillGroup}
       skillUsages={skillUsages}
       skillUsageTendencies={skillUsageTendencies}
       isLoading={isLoading}
       error={error ? String(error) : null}
-      onSelectSkill={onSelectSkill}
+      onSelectSkillGroup={onSelectSkillGroup}
       onRemoveSkill={onRemoveSkill}
       removingSkillId={removingSkillId}
     />
