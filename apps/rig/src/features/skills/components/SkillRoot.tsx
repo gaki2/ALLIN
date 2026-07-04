@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ContentLayout } from '@/layouts/ContentLayout';
 import { SidebarLayout } from '@/layouts/SidebarLayout';
+import type { Skill } from '../skillModel';
 import type { SkillRoot as SkillRootModel } from '../types';
-import { groupSkills, type SkillGroup } from '../groupSkills';
+import { getProviderSkills } from '../skillModel';
 import { getSkillIdentity, useRemoveSkill } from '../useRemoveSkill';
 import { SkillContentViewer } from './SkillContentViewer';
 import { SkillSidebar } from './SkillSidebar';
@@ -12,17 +13,17 @@ interface SkillRootProps {
 }
 
 export const SkillRoot = ({ roots }: SkillRootProps) => {
-  const [selectedSkillGroup, setSelectedSkillGroup] = useState<SkillGroup | null>(
-    null,
-  );
+  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const { removeSkill, removingSkillId } = useRemoveSkill({
     onRemoved: removedSkill => {
-      setSelectedSkillGroup(currentGroup =>
-        currentGroup?.instances.some(
-          skill => getSkillIdentity(skill) === getSkillIdentity(removedSkill),
+      setSelectedSkill(currentSkill =>
+        currentSkill &&
+        getProviderSkills(currentSkill).some(
+          providerSkill =>
+            getSkillIdentity(providerSkill) === getSkillIdentity(removedSkill),
         )
           ? null
-          : currentGroup,
+          : currentSkill,
       );
     },
   });
@@ -32,18 +33,15 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
       <SidebarLayout>
         <SkillSidebar
           roots={roots}
-          selectedSkillGroup={selectedSkillGroup}
-          onSelectSkillGroup={setSelectedSkillGroup}
+          selectedSkill={selectedSkill}
+          onSelectSkill={setSelectedSkill}
           onRemoveSkill={removeSkill}
           removingSkillId={removingSkillId}
         />
       </SidebarLayout>
 
       <ContentLayout>
-        <SkillContentViewer
-          skillGroup={selectedSkillGroup}
-          roots={roots}
-        />
+        <SkillContentViewer skill={selectedSkill} roots={roots} />
       </ContentLayout>
     </div>
   );

@@ -19,11 +19,12 @@ import { Trash2 } from 'lucide-react';
 import posthog from 'posthog-js';
 import { useState } from 'react';
 import {
+  getProviderSkills,
   providerLabels,
   providerOrder,
-  type SkillGroup,
-} from '../groupSkills';
-import type { Skill, SkillUsage, SkillUsageSeries } from '../types';
+  type Skill,
+} from '../skillModel';
+import type { ProviderSkill, SkillUsage, SkillUsageSeries } from '../types';
 import { getSkillIdentity } from '../useRemoveSkill';
 import { SkillUsageSparkline } from './SkillUsageSparkline';
 
@@ -33,31 +34,30 @@ const loadingSkeletonIds = Array.from(
 );
 
 export interface SkillListProps {
-  skillGroups: SkillGroup[];
-  selectedSkillGroup: SkillGroup | null;
+  skills: Skill[];
+  selectedSkill: Skill | null;
   skillUsages: SkillUsage[];
   skillUsageTendencies: SkillUsageSeries[];
   isLoading: boolean;
   error: string | null;
-  onSelectSkillGroup: (skillGroup: SkillGroup) => void;
-  onRemoveSkill: (skill: Skill) => void;
+  onSelectSkill: (skill: Skill) => void;
+  onRemoveSkill: (skill: ProviderSkill) => void;
   removingSkillId: string | null;
 }
 
 export const SkillList = ({
-  skillGroups,
-  selectedSkillGroup,
+  skills,
+  selectedSkill,
   skillUsages,
   skillUsageTendencies,
   isLoading,
   error,
-  onSelectSkillGroup,
+  onSelectSkill,
   onRemoveSkill,
   removingSkillId,
 }: SkillListProps) => {
-  const [skillPendingRemoval, setSkillPendingRemoval] = useState<Skill | null>(
-    null,
-  );
+  const [skillPendingRemoval, setSkillPendingRemoval] =
+    useState<ProviderSkill | null>(null);
 
   if (isLoading) {
     return (
@@ -85,11 +85,11 @@ export const SkillList = ({
   const tendencyByName = new Map(
     skillUsageTendencies.map(tendency => [tendency.name, tendency]),
   );
-  const totalFires = skillGroups.reduce(
-    (total, group) => total + (usageByName.get(group.name)?.count ?? 0),
+  const totalFires = skills.reduce(
+    (total, skill) => total + (usageByName.get(skill.name)?.count ?? 0),
     0,
   );
-  const sortedSkillGroups = skillGroups.toSorted((a, b) => {
+  const sortedSkills = skills.toSorted((a, b) => {
     const aCount = usageByName.get(a.name)?.count ?? 0;
     const bCount = usageByName.get(b.name)?.count ?? 0;
 
@@ -102,44 +102,46 @@ export const SkillList = ({
         <div className='flex items-baseline gap-2'>
           <h2 className='text-xl font-semibold tracking-tight'>Skills</h2>
           <p className='text-sm text-muted-foreground'>
-            {skillGroups.length} skills · {totalFires} fires
+            {skills.length} skills · {totalFires} fires
           </p>
         </div>
       </div>
       <ScrollArea className='min-h-0 flex-1'>
         <div className='space-y-1'>
-          {sortedSkillGroups.length === 0 && (
+          {sortedSkills.length === 0 && (
             <div className='p-1 text-sm text-muted-foreground'>
               No skills found in this scope.
             </div>
           )}
 
-          {sortedSkillGroups.map(skillGroup => {
-            const isSelected = selectedSkillGroup?.id === skillGroup.id;
-            const usage = usageByName.get(skillGroup.name);
-            const tendency = tendencyByName.get(skillGroup.name);
+          {sortedSkills.map(skill => {
+            const providerSkills = getProviderSkills(skill);
+            const isSelected = selectedSkill?.id === skill.id;
+            const usage = usageByName.get(skill.name);
+            const tendency = tendencyByName.get(skill.name);
             const count = usage?.count ?? 0;
-            const isRemovingSkill = skillGroup.instances.some(
-              skill => removingSkillId === getSkillIdentity(skill),
+            const isRemovingSkill = providerSkills.some(
+              providerSkill =>
+                removingSkillId === getSkillIdentity(providerSkill),
             );
 
             return (
-              <ContextMenu key={skillGroup.id}>
+              <ContextMenu key={skill.id}>
                 <ContextMenuTrigger asChild>
                   <button
                     type='button'
                     aria-current={isSelected ? 'true' : undefined}
                     onClick={() => {
-                      onSelectSkillGroup(skillGroup);
+                      onSelectSkill(skill);
                       posthog.capture('skill_selected', {
-                        skill_name: skillGroup.name,
-                        skill_description: skillGroup.description,
-                        skill_is_valid: skillGroup.instances.every(
-                          skill => skill.isValid,
+                        skill_name: skill.name,
+                        skill_description: skill.description,
+                        skill_is_valid: providerSkills.every(
+                          providerSkill => providerSkill.isValid,
                         ),
                         skill_usage_count:
-                          usageByName.get(skillGroup.name)?.count ?? 0,
-                        skill_providers: skillGroup.providers,
+                          usageByName.get(skill.name)?.count ?? 0,
+                        skill_providers: skill.providers,
                       });
                     }}
                     className={cn(
@@ -157,9 +159,9 @@ export const SkillList = ({
                     <span className='min-w-0 flex-1'>
                       <span className='flex min-w-0 items-center gap-2'>
                         <span className='truncate text-sm font-medium'>
-                          {skillGroup.name}
+                          {skill.name}
                         </span>
-                        {skillGroup.instances.some(skill => !skill.isValid) && (
+                        {providerSkills.some(providerSkill => !providerSkill.isValid) && (
                           <Badge
                             variant='destructive'
                             className='h-5 px-1.5 text-[10px]'
@@ -170,7 +172,7 @@ export const SkillList = ({
                       </span>
 
                       <span className='mt-1 line-clamp-1 text-xs text-muted-foreground'>
-                        {formatProviders(skillGroup)}
+                        {formatProviders(skill)}
                       </span>
                     </span>
 
@@ -189,15 +191,15 @@ export const SkillList = ({
                 </ContextMenuTrigger>
 
                 <ContextMenuContent alignOffset={4} className='w-48'>
-                  {skillGroup.instances.map(skill => (
+                  {providerSkills.map(providerSkill => (
                     <ContextMenuItem
-                      key={getSkillIdentity(skill)}
+                      key={getSkillIdentity(providerSkill)}
                       variant='destructive'
                       disabled={isRemovingSkill}
-                      onSelect={() => setSkillPendingRemoval(skill)}
+                      onSelect={() => setSkillPendingRemoval(providerSkill)}
                     >
                       <Trash2 />
-                      Delete from {providerLabels[skill.provider]}
+                      Delete from {providerLabels[providerSkill.provider]}
                     </ContextMenuItem>
                   ))}
                 </ContextMenuContent>
@@ -246,8 +248,8 @@ export const SkillList = ({
   );
 };
 
-const formatProviders = (skillGroup: SkillGroup) => {
-  return skillGroup.providers
+const formatProviders = (skill: Skill) => {
+  return skill.providers
     .toSorted((a, b) => providerOrder.indexOf(a) - providerOrder.indexOf(b))
     .map(provider => providerLabels[provider])
     .join(' · ');
