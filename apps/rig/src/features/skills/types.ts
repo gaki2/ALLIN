@@ -98,7 +98,7 @@ export const WindowTypeSchema = z.enum([
 
 export const BucketTypeSchema = z.enum(['hour', 'day', 'month']);
 
-export const SkillSchema = z.object({
+export const ProviderSkillSchema = z.object({
   id: z.string(),
   name: z.string(),
   rootPath: z.string(),
@@ -115,6 +115,8 @@ export const SkillSchema = z.object({
   rootId: z.string(),
   rootLabel: z.string(),
 });
+
+export const SkillSchema = ProviderSkillSchema;
 
 export const SkillUsageSchema = z.object({
   name: z.string(),
@@ -151,7 +153,8 @@ export type SkillRootImportErrorCode = z.infer<
   typeof SkillRootImportErrorCodeSchema
 >;
 export type SkillRootImportError = z.infer<typeof SkillRootImportErrorSchema>;
-export type Skill = z.infer<typeof SkillSchema>;
+export type ProviderSkill = z.infer<typeof ProviderSkillSchema>;
+export type Skill = ProviderSkill;
 export type SkillUsageErrorCode = z.infer<typeof SkillUsageErrorCodeSchema>;
 export type SkillUsageError = z.infer<typeof SkillUsageErrorSchema>;
 export type WindowType = z.infer<typeof WindowTypeSchema>;
