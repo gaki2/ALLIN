@@ -21,6 +21,7 @@ import {
 } from '@allin/ui';
 import {
   ChevronLeft,
+  ListChecks,
   Power,
   PowerOff,
   Search,
@@ -275,6 +276,34 @@ export const SkillList = ({
           ))}
         </fieldset>
 
+        {!managementView ? (
+          <nav
+            aria-label='Manage skills'
+            className='grid grid-cols-2 gap-1.5 rounded-xl border bg-muted/35 p-1.5'
+          >
+            <ManagementShortcut
+              icon={ListChecks}
+              label='Review'
+              count={libraryHealth.reviewCount}
+              tooltip='Skills with duplicate names, invalid files, or unusually large instructions.'
+              onClick={() => {
+                onManagementViewChange('review');
+                onClearSelection();
+              }}
+            />
+            <ManagementShortcut
+              icon={PowerOff}
+              label='Disabled'
+              count={archivedSkills.length}
+              tooltip='Skills kept on disk but excluded from agent discovery.'
+              onClick={() => {
+                onManagementViewChange('archived');
+                onClearSelection();
+              }}
+            />
+          </nav>
+        ) : null}
+
         {error ? (
           <div className='rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive'>
             <p className='font-medium'>Some locations could not be read</p>
@@ -460,23 +489,13 @@ export const SkillList = ({
           ~{formatCompactNumber(libraryHealth.totalEstimatedTokens)} tokens in
           discoverable instructions
         </span>
-        {managementView ? (
-          <span className='shrink-0'>{archivedSkills.length} disabled</span>
-        ) : (
-          <button
-            type='button'
-            onClick={() => {
-              onManagementViewChange('review');
-              onClearSelection();
-            }}
-            className='rig-pressable shrink-0 rounded-md px-1.5 py-1 font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-          >
-            Review {libraryHealth.reviewCount}
-            {archivedSkills.length > 0
-              ? ` · Disabled ${archivedSkills.length}`
-              : ''}
-          </button>
-        )}
+        <span className='shrink-0'>
+          {managementView === 'archived'
+            ? `${archivedSkills.length} disabled`
+            : managementView === 'review'
+              ? `${libraryHealth.reviewCount} to review`
+              : `${skills.length} skills`}
+        </span>
       </div>
 
       <AlertDialog
@@ -512,6 +531,38 @@ export const SkillList = ({
     </div>
   );
 };
+
+const ManagementShortcut = ({
+  icon: Icon,
+  label,
+  count,
+  tooltip,
+  onClick,
+}: {
+  icon: typeof ListChecks;
+  label: string;
+  count: number;
+  tooltip: string;
+  onClick: () => void;
+}) => (
+  <Tooltip delayDuration={300}>
+    <TooltipTrigger asChild>
+      <button
+        type='button'
+        onClick={onClick}
+        aria-label={`${label}: ${count}`}
+        className='rig-pressable flex min-w-0 items-center gap-2 rounded-lg border border-transparent bg-background/70 px-2.5 py-2 text-left text-xs font-medium text-muted-foreground shadow-xs hover:border-border hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+      >
+        <Icon size={14} className='shrink-0' />
+        <span className='min-w-0 flex-1 truncate'>{label}</span>
+        <span className='shrink-0 tabular-nums text-foreground'>{count}</span>
+      </button>
+    </TooltipTrigger>
+    <TooltipContent side='bottom' sideOffset={6} className='max-w-64 leading-5'>
+      {tooltip}
+    </TooltipContent>
+  </Tooltip>
+);
 
 const DuplicateSkillIndicator = ({
   locationCount,
