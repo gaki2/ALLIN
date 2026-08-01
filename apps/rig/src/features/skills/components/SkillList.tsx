@@ -15,9 +15,17 @@ import {
   cn,
   ScrollArea,
 } from '@allin/ui';
-import { Trash2 } from 'lucide-react';
+import { AlertTriangle, Search, Trash2 } from 'lucide-react';
 import posthog from 'posthog-js';
-import { useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
+import {
+  estimateSkillTokens,
+  getDuplicateSkillNames,
+  getLibraryHealth,
+  getSkillReviewReasons,
+  getSkillSourceLabel,
+  matchesSkillSearch,
+} from '../insights';
 import type { Skill, SkillUsage, SkillUsageSeries } from '../types';
 import { getSkillIdentity } from '../useRemoveSkill';
 import { SkillUsageSparkline } from './SkillUsageSparkline';
@@ -26,6 +34,14 @@ const loadingSkeletonIds = Array.from(
   { length: 6 },
   (_, index) => `skill-loading-${index}`,
 );
+
+type SkillFilter = 'all' | 'used' | 'review';
+
+const skillFilters: Array<{ value: SkillFilter; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'used', label: 'Used recently' },
+  { value: 'review', label: 'Needs review' },
+];
 
 export interface SkillListProps {
   skills: Skill[];
@@ -53,63 +69,146 @@ export const SkillList = ({
   const [skillPendingRemoval, setSkillPendingRemoval] = useState<Skill | null>(
     null,
   );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<SkillFilter>('all');
+  const deferredSearchQuery = useDeferredValue(
+    searchQuery.trim().toLowerCase(),
+  );
+  const usageByName = useMemo(
+    () => new Map(skillUsages.map(usage => [usage.name, usage])),
+    [skillUsages],
+  );
+  const tendencyByName = useMemo(
+    () =>
+      new Map(skillUsageTendencies.map(tendency => [tendency.name, tendency])),
+    [skillUsageTendencies],
+  );
+  const duplicateNames = useMemo(
+    () => getDuplicateSkillNames(skills),
+    [skills],
+  );
+  const libraryHealth = useMemo(() => getLibraryHealth(skills), [skills]);
+  const visibleSkills = useMemo(() => {
+    const matchingSkills = skills.filter(skill => {
+      const usage = usageByName.get(skill.name);
+      const reviewReasons = getSkillReviewReasons({ skill, duplicateNames });
+      const matchesQuery = matchesSkillSearch(skill, deferredSearchQuery);
+      const matchesFilter =
+        filter === 'all' ||
+        (filter === 'used' && (usage?.count ?? 0) > 0) ||
+        (filter === 'review' && reviewReasons.length > 0);
+
+      return matchesQuery && matchesFilter;
+    });
+
+    return matchingSkills.toSorted((a, b) => {
+      const aCount = usageByName.get(a.name)?.count ?? 0;
+      const bCount = usageByName.get(b.name)?.count ?? 0;
+
+      return bCount - aCount || a.name.localeCompare(b.name);
+    });
+  }, [deferredSearchQuery, duplicateNames, filter, skills, usageByName]);
 
   if (isLoading) {
     return (
-      <div className='space-y-2 p-3'>
+      <output className='block space-y-2 p-3' aria-label='Loading skills'>
         {loadingSkeletonIds.map(skeletonId => (
           <div
             key={skeletonId}
-            className='h-16 animate-pulse rounded-lg bg-muted'
+            className='h-16 animate-pulse rounded-xl bg-muted'
           />
         ))}
-      </div>
+      </output>
     );
   }
-
-  if (error) {
-    return (
-      <div className='p-4 text-sm text-destructive'>
-        <p className='font-medium'>Failed to load skills</p>
-        <p className='mt-1 text-xs opacity-80'>{error}</p>
-      </div>
-    );
-  }
-
-  const usageByName = new Map(skillUsages.map(usage => [usage.name, usage]));
-  const tendencyByName = new Map(
-    skillUsageTendencies.map(tendency => [tendency.name, tendency]),
-  );
-  const totalFires = skills.reduce(
-    (total, skill) => total + (usageByName.get(skill.name)?.count ?? 0),
-    0,
-  );
-  const sortedSkills = skills.toSorted((a, b) => {
-    const aCount = usageByName.get(a.name)?.count ?? 0;
-    const bCount = usageByName.get(b.name)?.count ?? 0;
-
-    return bCount - aCount || a.name.localeCompare(b.name);
-  });
 
   return (
     <div className='flex h-full min-h-0 flex-col'>
-      <div className='shrink-0 border-b px-5 py-4'>
-        <div className='flex items-baseline gap-2'>
-          <h2 className='text-xl font-semibold tracking-tight'>Skills</h2>
-          <p className='text-sm text-muted-foreground'>
-            {skills.length} skills · {totalFires} fires
-          </p>
+      <div className='shrink-0 space-y-3 border-b px-4 pb-3 pt-4'>
+        <div className='flex items-center justify-between gap-3'>
+          <div>
+            <h1 className='text-lg font-semibold tracking-[-0.02em]'>
+              Library
+            </h1>
+            <p className='text-xs text-muted-foreground'>
+              {skills.length} skills across your detected context
+            </p>
+          </div>
+          <button
+            type='button'
+            className='rig-pressable flex items-center gap-2 rounded-full border bg-background px-2.5 py-1.5 text-xs font-semibold shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+            onClick={() => setFilter('review')}
+            aria-label={`${libraryHealth.reviewCount} skills need review`}
+          >
+            <span
+              className={cn(
+                'size-2 rounded-full',
+                libraryHealth.reviewCount > 0
+                  ? 'bg-amber-400'
+                  : 'bg-emerald-400',
+              )}
+            />
+            {libraryHealth.reviewCount > 0
+              ? `${libraryHealth.reviewCount} review`
+              : 'Healthy'}
+          </button>
         </div>
-      </div>
-      <ScrollArea className='min-h-0 flex-1'>
-        <div className='space-y-1'>
-          {sortedSkills.length === 0 && (
-            <div className='p-1 text-sm text-muted-foreground'>
-              No skills found in this root.
-            </div>
-          )}
 
-          {sortedSkills.map(skill => {
+        <label className='relative block'>
+          <Search
+            size={15}
+            className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
+          />
+          <span className='sr-only'>Search skills</span>
+          <input
+            type='search'
+            value={searchQuery}
+            onChange={event => setSearchQuery(event.target.value)}
+            placeholder='Search names, instructions, paths…'
+            className='h-9 w-full rounded-xl border bg-background pl-9 pr-3 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20'
+          />
+        </label>
+
+        <fieldset className='flex gap-1 overflow-x-auto'>
+          <legend className='sr-only'>Filter skills</legend>
+          {skillFilters.map(option => (
+            <button
+              key={option.value}
+              type='button'
+              aria-pressed={filter === option.value}
+              onClick={() => setFilter(option.value)}
+              className={cn(
+                'rig-pressable shrink-0 rounded-full px-2.5 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                filter === option.value
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+            >
+              {option.label}
+              {option.value === 'review' && libraryHealth.reviewCount > 0
+                ? ` ${libraryHealth.reviewCount}`
+                : ''}
+            </button>
+          ))}
+        </fieldset>
+
+        {error ? (
+          <div className='rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive'>
+            <p className='font-medium'>Some locations could not be read</p>
+            <p className='mt-0.5 line-clamp-2 opacity-80'>{error}</p>
+          </div>
+        ) : null}
+      </div>
+
+      <ScrollArea className='min-h-0 flex-1'>
+        <div className='space-y-1 p-2'>
+          {visibleSkills.length === 0 ? (
+            <div className='m-2 rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground'>
+              No skills match this view.
+            </div>
+          ) : null}
+
+          {visibleSkills.map(skill => {
             const skillIdentity = getSkillIdentity(skill);
             const isSelected = selectedSkill
               ? getSkillIdentity(selectedSkill) === skillIdentity
@@ -118,6 +217,10 @@ export const SkillList = ({
             const tendency = tendencyByName.get(skill.name);
             const count = usage?.count ?? 0;
             const isRemovingSkill = removingSkillId === skillIdentity;
+            const reviewReasons = getSkillReviewReasons({
+              skill,
+              duplicateNames,
+            });
 
             return (
               <ContextMenu key={skillIdentity}>
@@ -131,16 +234,16 @@ export const SkillList = ({
                         skill_name: skill.name,
                         skill_description: skill.description,
                         skill_is_valid: skill.isValid,
-                        skill_usage_count:
-                          usageByName.get(skill.name)?.count ?? 0,
+                        skill_usage_count: count,
+                        skill_root_path: skill.rootPath,
                       });
                     }}
                     className={cn(
-                      'flex w-full max-w-76 mx-auto min-w-0 items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors',
+                      'rig-pressable group flex w-full min-w-0 items-center gap-3 rounded-xl border px-3 py-3 text-left',
                       'hover:bg-accent hover:text-accent-foreground',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       isSelected
-                        ? 'border-primary bg-accent text-accent-foreground'
+                        ? 'border-foreground/15 bg-background text-foreground shadow-sm'
                         : 'border-transparent bg-transparent',
                       isRemovingSkill && 'pointer-events-none opacity-60',
                     )}
@@ -148,22 +251,40 @@ export const SkillList = ({
                     <SkillUsageSparkline values={tendency?.series ?? []} />
 
                     <span className='min-w-0 flex-1'>
-                      <span className='flex min-w-0 items-center gap-2'>
+                      <span className='flex min-w-0 items-center gap-1.5'>
                         <span className='truncate text-sm font-medium'>
                           {skill.name}
                         </span>
-                        {!skill.isValid && (
+                        {!skill.isValid ? (
                           <Badge
                             variant='destructive'
                             className='h-5 px-1.5 text-[10px]'
                           >
                             Invalid
                           </Badge>
-                        )}
+                        ) : null}
+                        {reviewReasons.length > 0 && skill.isValid ? (
+                          <AlertTriangle
+                            size={13}
+                            aria-label={reviewReasons.join(', ')}
+                            className='shrink-0 text-amber-500'
+                          />
+                        ) : null}
                       </span>
 
                       <span className='mt-1 line-clamp-1 text-xs text-muted-foreground'>
                         {skill.description || skill.relativePath}
+                      </span>
+                      <span className='mt-1 flex min-w-0 gap-1.5 text-[10px] text-muted-foreground/80'>
+                        <span>
+                          {formatTokenEstimate(
+                            estimateSkillTokens(skill.content),
+                          )}
+                        </span>
+                        <span aria-hidden='true'>·</span>
+                        <span className='truncate'>
+                          {getSkillSourceLabel(skill)}
+                        </span>
                       </span>
                     </span>
 
@@ -171,12 +292,12 @@ export const SkillList = ({
                       className={cn(
                         'shrink-0 text-xs font-light tabular-nums',
                         isSelected
-                          ? 'text-primary font-medium'
+                          ? 'font-medium text-foreground'
                           : 'text-muted-foreground',
                       )}
                     >
                       {count}
-                      <span className='text-xs text-muted-foreground'>×</span>
+                      <span className='text-muted-foreground'>×</span>
                     </span>
                   </button>
                 </ContextMenuTrigger>
@@ -197,12 +318,15 @@ export const SkillList = ({
         </div>
       </ScrollArea>
 
+      <div className='shrink-0 border-t px-4 py-2.5 text-[11px] text-muted-foreground'>
+        ~{formatCompactNumber(libraryHealth.totalEstimatedTokens)} estimated
+        tokens stored locally
+      </div>
+
       <AlertDialog
         open={skillPendingRemoval !== null}
         onOpenChange={isOpen => {
-          if (!isOpen) {
-            setSkillPendingRemoval(null);
-          }
+          if (!isOpen) setSkillPendingRemoval(null);
         }}
       >
         <AlertDialogContent>
@@ -221,9 +345,7 @@ export const SkillList = ({
             <AlertDialogAction
               className='bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20'
               onClick={() => {
-                if (skillPendingRemoval) {
-                  onRemoveSkill(skillPendingRemoval);
-                }
+                if (skillPendingRemoval) onRemoveSkill(skillPendingRemoval);
               }}
             >
               Delete
@@ -234,3 +356,12 @@ export const SkillList = ({
     </div>
   );
 };
+
+const formatTokenEstimate = (tokens: number) =>
+  `~${formatCompactNumber(tokens)} tokens`;
+
+const formatCompactNumber = (value: number) =>
+  new Intl.NumberFormat(undefined, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
