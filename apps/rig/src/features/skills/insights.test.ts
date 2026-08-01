@@ -3,6 +3,7 @@ import {
   estimateSkillTokens,
   getDuplicateSkillNames,
   getLibraryHealth,
+  getSkillFilePath,
   getSkillNameCounts,
   getSkillReviewReasons,
   getSkillSourceLabel,
@@ -66,6 +67,20 @@ describe('skill library insights', () => {
         makeSkill({ rootPath: '/Users/test/.config/opencode/skills' }),
       ),
     ).toBe('OpenCode');
+  });
+
+  it('builds the absolute SKILL.md path for each platform', () => {
+    expect(getSkillFilePath(makeSkill())).toBe(
+      '/Users/test/.agents/skills/review-animations/SKILL.md',
+    );
+    expect(
+      getSkillFilePath(
+        makeSkill({
+          rootPath: 'C:\\Users\\test\\.agents\\skills',
+          relativePath: 'review-animations',
+        }),
+      ),
+    ).toBe('C:\\Users\\test\\.agents\\skills\\review-animations\\SKILL.md');
   });
 
   it('flags the exact large-instruction threshold', () => {

@@ -16,6 +16,7 @@ import {
   Check,
   Clipboard,
   Code2,
+  FileText,
   FileWarning,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -27,6 +28,7 @@ import { listSkillUsageEvents, listSkillUsages } from '../api';
 import {
   estimateSkillTokens,
   getLibraryHealth,
+  getSkillFilePath,
   getSkillSourceLabel,
 } from '../insights';
 import type { Skill, SkillUsage, SkillUsageEvent } from '../types';
@@ -85,6 +87,7 @@ const SkillInspector = ({
     skill.isValid ? 'rendered' : 'source',
   );
   const [didCopy, setDidCopy] = useState(false);
+  const [didCopyPath, setDidCopyPath] = useState(false);
   const skillName = skill.name;
   const {
     data: recentEvents = [],
@@ -103,6 +106,7 @@ const SkillInspector = ({
   const allUsage = allUsages.find(usage => usage.name === skill.name);
   const lastUsedAt = allUsage?.lastUsedAt ?? null;
   const description = skill.description || 'No description provided.';
+  const skillFilePath = getSkillFilePath(skill);
 
   const copyContent = async () => {
     try {
@@ -111,6 +115,16 @@ const SkillInspector = ({
       window.setTimeout(() => setDidCopy(false), 1_500);
     } catch {
       toast.error('Could not copy skill content');
+    }
+  };
+
+  const copyFilePath = async () => {
+    try {
+      await navigator.clipboard.writeText(skillFilePath);
+      setDidCopyPath(true);
+      window.setTimeout(() => setDidCopyPath(false), 1_500);
+    } catch {
+      toast.error('Could not copy the skill path');
     }
   };
 
@@ -185,9 +199,35 @@ const SkillInspector = ({
                 onSelect={setActiveTab}
               />
             </div>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <button
+                  type='button'
+                  onClick={copyFilePath}
+                  aria-label={`Copy skill file path: ${skillFilePath}`}
+                  className='rig-pressable flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 text-left text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                >
+                  {didCopyPath ? (
+                    <Check size={12} className='shrink-0' />
+                  ) : (
+                    <FileText size={12} className='shrink-0' />
+                  )}
+                  <span className='truncate font-mono'>{skillFilePath}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                sideOffset={6}
+                className='max-w-xl break-all font-mono leading-5'
+              >
+                <p>{skillFilePath}</p>
+                <p className='mt-1 font-sans opacity-70'>
+                  {didCopyPath ? 'Path copied' : 'Click to copy path'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
             <p
-              className='ml-auto hidden min-w-0 truncate text-right text-xs text-muted-foreground sm:block'
-              title={`${getSkillSourceLabel(skill)} · ${skill.relativePath}/SKILL.md · ~${formatCompactNumber(estimateSkillTokens(skill.content))} estimated tokens${skill.updatedAt ? ` · Updated ${formatRelativeTime(skill.updatedAt)}` : ''}`}
+              className='ml-auto hidden shrink-0 truncate text-right text-xs text-muted-foreground lg:block'
+              title={`~${formatCompactNumber(estimateSkillTokens(skill.content))} estimated tokens${skill.updatedAt ? ` · Updated ${formatRelativeTime(skill.updatedAt)}` : ''}`}
             >
               {getSkillSourceLabel(skill)}
               <span aria-hidden='true'> · </span>~

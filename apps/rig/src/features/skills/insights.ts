@@ -16,6 +16,20 @@ export const getSkillSourceLabel = (skill: Pick<Skill, 'rootPath'>) => {
   return segments.at(-1) ?? skill.rootPath;
 };
 
+export const getSkillFilePath = (
+  skill: Pick<Skill, 'rootPath' | 'relativePath'>,
+) => {
+  const usesWindowsSeparators =
+    skill.rootPath.includes('\\') && !skill.rootPath.includes('/');
+  const separator = usesWindowsSeparators ? '\\' : '/';
+  const rootPath = skill.rootPath.replace(/[\\/]+$/, '');
+  const relativePath = skill.relativePath
+    .replace(/^[\\/]+|[\\/]+$/g, '')
+    .replaceAll(usesWindowsSeparators ? '/' : '\\', separator);
+
+  return [rootPath, relativePath, 'SKILL.md'].filter(Boolean).join(separator);
+};
+
 export const matchesSkillSearch = (skill: Skill, query: string) => {
   const normalizedQuery = query.trim().toLowerCase();
 
