@@ -11,6 +11,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
 import {
   Activity,
+  Archive,
+  ArchiveRestore,
   ArrowLeft,
   BookOpenText,
   Check,
@@ -18,6 +20,7 @@ import {
   Code2,
   FileText,
   FileWarning,
+  LoaderCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -40,6 +43,10 @@ interface SkillContentViewerProps {
   weekUsages: SkillUsage[];
   onSelectSkill: (skill: Skill) => void;
   onBack: () => void;
+  onArchiveSkill: (skill: Skill) => void;
+  onRestoreSkill: (skill: Skill) => void;
+  isChangingArchiveState: boolean;
+  managementView: 'review' | 'archived' | null;
 }
 
 export const SkillContentViewer = ({
@@ -48,11 +55,30 @@ export const SkillContentViewer = ({
   weekUsages,
   onSelectSkill,
   onBack,
+  onArchiveSkill,
+  onRestoreSkill,
+  isChangingArchiveState,
+  managementView,
 }: SkillContentViewerProps) => {
   if (!skill) {
+    const activeSkills = skills.filter(candidate => !candidate.isArchived);
+
+    if (managementView) {
+      return (
+        <ManagementOverview
+          mode={managementView}
+          hasItems={
+            managementView === 'archived'
+              ? skills.some(candidate => candidate.isArchived)
+              : getLibraryHealth(activeSkills).reviewCount > 0
+          }
+        />
+      );
+    }
+
     return (
       <LibraryOverview
-        skills={skills}
+        skills={activeSkills}
         weekUsages={weekUsages}
         onSelectSkill={onSelectSkill}
       />
@@ -65,9 +91,16 @@ export const SkillContentViewer = ({
       skill={skill}
       weekUsages={weekUsages}
       duplicateLocationCount={
-        skills.filter(candidate => candidate.name === skill.name).length
+        skills.filter(
+          candidate =>
+            candidate.name === skill.name &&
+            candidate.isArchived === skill.isArchived,
+        ).length
       }
       onBack={onBack}
+      onArchiveSkill={onArchiveSkill}
+      onRestoreSkill={onRestoreSkill}
+      isChangingArchiveState={isChangingArchiveState}
     />
   );
 };
@@ -77,11 +110,17 @@ const SkillInspector = ({
   weekUsages,
   duplicateLocationCount,
   onBack,
+  onArchiveSkill,
+  onRestoreSkill,
+  isChangingArchiveState,
 }: {
   skill: Skill;
   weekUsages: SkillUsage[];
   duplicateLocationCount: number;
   onBack: () => void;
+  onArchiveSkill: (skill: Skill) => void;
+  onRestoreSkill: (skill: Skill) => void;
+  isChangingArchiveState: boolean;
 }) => {
   const [activeTab, setActiveTab] = useState<InspectorTab>(
     skill.isValid ? 'rendered' : 'source',
@@ -149,6 +188,11 @@ const SkillInspector = ({
                 Invalid
               </Badge>
             ) : null}
+            {skill.isArchived ? (
+              <Badge variant='secondary' className='shrink-0 text-[10px]'>
+                Archived
+              </Badge>
+            ) : null}
             {duplicateLocationCount > 1 ? (
               <DuplicateSkillBadge locationCount={duplicateLocationCount} />
             ) : null}
@@ -158,6 +202,41 @@ const SkillInspector = ({
             >
               {description}
             </p>
+            <button
+              type='button'
+              disabled={isChangingArchiveState}
+              aria-busy={isChangingArchiveState}
+              aria-label={
+                isChangingArchiveState
+                  ? skill.isArchived
+                    ? 'Restoring skill'
+                    : 'Archiving skill'
+                  : skill.isArchived
+                    ? 'Restore skill'
+                    : 'Archive skill'
+              }
+              onClick={() =>
+                skill.isArchived ? onRestoreSkill(skill) : onArchiveSkill(skill)
+              }
+              className='rig-pressable inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border bg-background px-2 text-xs font-medium shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-50'
+            >
+              {isChangingArchiveState ? (
+                <LoaderCircle size={13} className='shrink-0 animate-spin' />
+              ) : skill.isArchived ? (
+                <ArchiveRestore size={13} className='shrink-0' />
+              ) : (
+                <Archive size={13} className='shrink-0' />
+              )}
+              <span className='hidden sm:inline'>
+                {isChangingArchiveState
+                  ? skill.isArchived
+                    ? 'Restoring…'
+                    : 'Archiving…'
+                  : skill.isArchived
+                    ? 'Restore'
+                    : 'Archive'}
+              </span>
+            </button>
             <button
               type='button'
               onClick={copyContent}
@@ -283,6 +362,48 @@ const SkillInspector = ({
           </section>
         </main>
       </ScrollArea>
+    </div>
+  );
+};
+
+const ManagementOverview = ({
+  mode,
+  hasItems,
+}: {
+  mode: 'review' | 'archived';
+  hasItems: boolean;
+}) => {
+  const isArchived = mode === 'archived';
+
+  return (
+    <div className='flex h-full items-center justify-center px-8 py-10'>
+      <div className='max-w-md text-center'>
+        <div className='mx-auto flex size-11 items-center justify-center rounded-2xl border bg-card shadow-xs'>
+          {isArchived ? (
+            <ArchiveRestore size={19} />
+          ) : (
+            <FileWarning size={19} />
+          )}
+        </div>
+        <h2 className='mt-4 text-2xl font-semibold tracking-[-0.035em]'>
+          {hasItems
+            ? isArchived
+              ? 'Choose an archived skill.'
+              : 'Choose a skill to review.'
+            : isArchived
+              ? 'No archived skills.'
+              : 'Nothing needs review.'}
+        </h2>
+        <p className='mt-2 text-sm leading-6 text-muted-foreground'>
+          {hasItems
+            ? isArchived
+              ? 'Inspect its instructions and source before restoring it to agent discovery.'
+              : 'Review the evidence before archiving anything. Archived files stay on disk.'
+            : isArchived
+              ? 'Skills archived from this scope will stay available here for restoration.'
+              : 'No invalid, duplicate, or unusually large instructions were found in this scope.'}
+        </p>
+      </div>
     </div>
   );
 };

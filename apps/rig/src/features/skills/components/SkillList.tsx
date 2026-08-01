@@ -11,6 +11,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
   cn,
   ScrollArea,
@@ -18,13 +19,22 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@allin/ui';
-import { Search, Trash2, TriangleAlert } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronLeft,
+  Search,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import posthog from 'posthog-js';
 import { useDeferredValue, useMemo, useState } from 'react';
 import {
   estimateSkillTokens,
+  getDuplicateSkillNames,
   getLibraryHealth,
   getSkillNameCounts,
+  getSkillReviewReasons,
   getSkillSourceLabel,
   matchesSkillSearch,
 } from '../insights';
@@ -38,6 +48,7 @@ const loadingSkeletonIds = Array.from(
 );
 
 type SkillFilter = 'all' | 'used';
+type ManagementView = 'review' | 'archived';
 
 const skillFilters: Array<{ value: SkillFilter; label: string }> = [
   { value: 'all', label: 'All' },
@@ -46,26 +57,40 @@ const skillFilters: Array<{ value: SkillFilter; label: string }> = [
 
 export interface SkillListProps {
   skills: Skill[];
+  archivedSkills: Skill[];
   selectedSkill: Skill | null;
   skillUsages: SkillUsage[];
   skillUsageTendencies: SkillUsageSeries[];
   isLoading: boolean;
   error: string | null;
   onSelectSkill: (skill: Skill) => void;
+  onClearSelection: () => void;
   onRemoveSkill: (skill: Skill) => void;
   removingSkillId: string | null;
+  onArchiveSkill: (skill: Skill) => void;
+  onRestoreSkill: (skill: Skill) => void;
+  changingSkillId: string | null;
+  managementView: ManagementView | null;
+  onManagementViewChange: (view: ManagementView | null) => void;
 }
 
 export const SkillList = ({
   skills,
+  archivedSkills,
   selectedSkill,
   skillUsages,
   skillUsageTendencies,
   isLoading,
   error,
   onSelectSkill,
+  onClearSelection,
   onRemoveSkill,
   removingSkillId,
+  onArchiveSkill,
+  onRestoreSkill,
+  changingSkillId,
+  managementView,
+  onManagementViewChange,
 }: SkillListProps) => {
   const [skillPendingRemoval, setSkillPendingRemoval] = useState<Skill | null>(
     null,
@@ -85,13 +110,48 @@ export const SkillList = ({
     [skillUsageTendencies],
   );
   const libraryHealth = useMemo(() => getLibraryHealth(skills), [skills]);
-  const skillNameCounts = useMemo(() => getSkillNameCounts(skills), [skills]);
+  const activeSkillNameCounts = useMemo(
+    () => getSkillNameCounts(skills),
+    [skills],
+  );
+  const archivedSkillNameCounts = useMemo(
+    () => getSkillNameCounts(archivedSkills),
+    [archivedSkills],
+  );
+  const duplicateSkillNames = useMemo(
+    () => getDuplicateSkillNames(skills),
+    [skills],
+  );
+  const visibleFilters: Array<{
+    value: SkillFilter | ManagementView;
+    label: string;
+  }> = managementView
+    ? [
+        {
+          value: 'review',
+          label: `Needs review · ${libraryHealth.reviewCount}`,
+        },
+        {
+          value: 'archived',
+          label: `Archived · ${archivedSkills.length}`,
+        },
+      ]
+    : skillFilters;
   const visibleSkills = useMemo(() => {
-    const matchingSkills = skills.filter(skill => {
+    const sourceSkills =
+      managementView === 'archived' ? archivedSkills : skills;
+    const matchingSkills = sourceSkills.filter(skill => {
       const usage = usageByName.get(skill.name);
       const matchesQuery = matchesSkillSearch(skill, deferredSearchQuery);
       const matchesFilter =
-        filter === 'all' || (filter === 'used' && (usage?.count ?? 0) > 0);
+        managementView === 'review'
+          ? getSkillReviewReasons({
+              skill,
+              duplicateNames: duplicateSkillNames,
+            }).length > 0
+          : managementView === 'archived' ||
+            filter === 'all' ||
+            (filter === 'used' && (usage?.count ?? 0) > 0);
 
       return matchesQuery && matchesFilter;
     });
@@ -102,7 +162,15 @@ export const SkillList = ({
 
       return bCount - aCount || a.name.localeCompare(b.name);
     });
-  }, [deferredSearchQuery, filter, skills, usageByName]);
+  }, [
+    archivedSkills,
+    deferredSearchQuery,
+    duplicateSkillNames,
+    filter,
+    managementView,
+    skills,
+    usageByName,
+  ]);
 
   if (isLoading) {
     return (
@@ -120,12 +188,42 @@ export const SkillList = ({
   return (
     <div className='flex h-full min-h-0 flex-col'>
       <div className='shrink-0 space-y-3 border-b px-4 pb-3 pt-4'>
-        <div>
-          <h1 className='text-lg font-semibold tracking-[-0.02em]'>Library</h1>
-          <p className='text-xs text-muted-foreground'>
-            {skills.length} skills across your detected context
-          </p>
-        </div>
+        {managementView ? (
+          <div>
+            <button
+              type='button'
+              onClick={() => {
+                onManagementViewChange(null);
+                onClearSelection();
+              }}
+              className='rig-pressable -ml-2 inline-flex h-7 items-center gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+            >
+              <ChevronLeft size={14} />
+              Library
+            </button>
+            <div className='mt-1 flex items-end justify-between gap-3'>
+              <div>
+                <h1 className='text-lg font-semibold tracking-[-0.02em]'>
+                  {managementView === 'archived' ? 'Archived' : 'Needs review'}
+                </h1>
+                <p className='text-xs text-muted-foreground'>
+                  {managementView === 'archived'
+                    ? 'Kept on disk and excluded from discovery'
+                    : 'Issues that may affect discovery or instruction size'}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <h1 className='text-lg font-semibold tracking-[-0.02em]'>
+              Library
+            </h1>
+            <p className='text-xs text-muted-foreground'>
+              {skills.length} discoverable skills
+            </p>
+          </div>
+        )}
 
         <label className='relative block'>
           <Search
@@ -144,15 +242,30 @@ export const SkillList = ({
 
         <fieldset className='flex gap-1 overflow-x-auto'>
           <legend className='sr-only'>Filter skills</legend>
-          {skillFilters.map(option => (
+          {visibleFilters.map(option => (
             <button
               key={option.value}
               type='button'
-              aria-pressed={filter === option.value}
-              onClick={() => setFilter(option.value)}
+              aria-pressed={
+                managementView
+                  ? managementView === option.value
+                  : filter === option.value
+              }
+              onClick={() => {
+                if (option.value === 'review' || option.value === 'archived') {
+                  onManagementViewChange(option.value);
+                  onClearSelection();
+                  return;
+                }
+                setFilter(option.value);
+              }}
               className={cn(
                 'rig-pressable shrink-0 rounded-full px-2.5 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                filter === option.value
+                (
+                  managementView
+                    ? managementView === option.value
+                    : filter === option.value
+                )
                   ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
@@ -174,7 +287,13 @@ export const SkillList = ({
         <div className='space-y-1 p-2'>
           {visibleSkills.length === 0 ? (
             <div className='m-2 rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground'>
-              No skills match this view.
+              {deferredSearchQuery
+                ? 'No skills match your search.'
+                : managementView === 'archived'
+                  ? 'No archived skills.'
+                  : managementView === 'review'
+                    ? 'No skills need review.'
+                    : 'No skills match this view.'}
             </div>
           ) : null}
 
@@ -186,8 +305,17 @@ export const SkillList = ({
             const usage = usageByName.get(skill.name);
             const tendency = tendencyByName.get(skill.name);
             const count = usage?.count ?? 0;
-            const duplicateLocationCount = skillNameCounts.get(skill.name) ?? 0;
+            const duplicateLocationCount =
+              (skill.isArchived
+                ? archivedSkillNameCounts
+                : activeSkillNameCounts
+              ).get(skill.name) ?? 0;
             const isRemovingSkill = removingSkillId === skillIdentity;
+            const isChangingArchiveState = changingSkillId === skillIdentity;
+            const reviewReasons = getSkillReviewReasons({
+              skill,
+              duplicateNames: duplicateSkillNames,
+            });
 
             return (
               <ContextMenu key={skillIdentity}>
@@ -230,7 +358,8 @@ export const SkillList = ({
                             Invalid
                           </Badge>
                         ) : null}
-                        {duplicateLocationCount > 1 ? (
+                        {duplicateLocationCount > 1 &&
+                        managementView !== 'review' ? (
                           <DuplicateSkillIndicator
                             locationCount={duplicateLocationCount}
                           />
@@ -240,7 +369,28 @@ export const SkillList = ({
                       <span className='mt-1 line-clamp-1 text-xs text-muted-foreground'>
                         {skill.description || skill.relativePath}
                       </span>
-                      <span className='mt-1 flex min-w-0 gap-1.5 text-[10px] text-muted-foreground/80'>
+                      {managementView === 'review' ? (
+                        <span className='mt-1 flex flex-wrap gap-1 text-[10px]'>
+                          {reviewReasons.map(reason => (
+                            <span
+                              key={reason}
+                              className='rounded-full bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-700 dark:text-amber-300'
+                            >
+                              {formatReviewReason(
+                                reason,
+                                duplicateLocationCount,
+                                skill,
+                              )}
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
+                      <span className='mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground/80'>
+                        {managementView === 'archived' ? (
+                          <span className='rounded-full bg-muted px-1.5 py-0.5 font-medium text-muted-foreground'>
+                            Kept on disk
+                          </span>
+                        ) : null}
                         <span>
                           {formatTokenEstimate(
                             estimateSkillTokens(skill.content),
@@ -261,21 +411,43 @@ export const SkillList = ({
                           : 'text-muted-foreground',
                       )}
                     >
-                      {count}
-                      <span className='text-muted-foreground'>×</span>
+                      {skill.isArchived ? '—' : count}
+                      {!skill.isArchived ? (
+                        <span className='text-muted-foreground'>×</span>
+                      ) : null}
                     </span>
                   </button>
                 </ContextMenuTrigger>
 
                 <ContextMenuContent alignOffset={4} className='w-40'>
-                  <ContextMenuItem
-                    variant='destructive'
-                    disabled={isRemovingSkill}
-                    onSelect={() => setSkillPendingRemoval(skill)}
-                  >
-                    <Trash2 />
-                    Delete skill
-                  </ContextMenuItem>
+                  {skill.isArchived ? (
+                    <ContextMenuItem
+                      disabled={isChangingArchiveState}
+                      onSelect={() => onRestoreSkill(skill)}
+                    >
+                      <ArchiveRestore />
+                      Restore skill
+                    </ContextMenuItem>
+                  ) : (
+                    <>
+                      <ContextMenuItem
+                        disabled={isChangingArchiveState}
+                        onSelect={() => onArchiveSkill(skill)}
+                      >
+                        <Archive />
+                        Archive skill
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        variant='destructive'
+                        disabled={isRemovingSkill}
+                        onSelect={() => setSkillPendingRemoval(skill)}
+                      >
+                        <Trash2 />
+                        Delete skill
+                      </ContextMenuItem>
+                    </>
+                  )}
                 </ContextMenuContent>
               </ContextMenu>
             );
@@ -283,9 +455,28 @@ export const SkillList = ({
         </div>
       </ScrollArea>
 
-      <div className='shrink-0 border-t px-4 py-2.5 text-[11px] text-muted-foreground'>
-        ~{formatCompactNumber(libraryHealth.totalEstimatedTokens)} estimated
-        tokens stored locally
+      <div className='flex shrink-0 items-center justify-between gap-3 border-t px-4 py-2 text-[11px] text-muted-foreground'>
+        <span className='truncate'>
+          ~{formatCompactNumber(libraryHealth.totalEstimatedTokens)} tokens in
+          discoverable instructions
+        </span>
+        {managementView ? (
+          <span className='shrink-0'>{archivedSkills.length} kept on disk</span>
+        ) : (
+          <button
+            type='button'
+            onClick={() => {
+              onManagementViewChange('review');
+              onClearSelection();
+            }}
+            className='rig-pressable shrink-0 rounded-md px-1.5 py-1 font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+          >
+            Review {libraryHealth.reviewCount}
+            {archivedSkills.length > 0
+              ? ` · Archived ${archivedSkills.length}`
+              : ''}
+          </button>
+        )}
       </div>
 
       <AlertDialog
@@ -349,6 +540,21 @@ const DuplicateSkillIndicator = ({
 
 const formatTokenEstimate = (tokens: number) =>
   `~${formatCompactNumber(tokens)} tokens`;
+
+const formatReviewReason = (
+  reason: string,
+  duplicateLocationCount: number,
+  skill: Skill,
+) => {
+  if (reason === 'Invalid file') return 'Invalid';
+  if (reason === 'Duplicate name') {
+    return `Duplicate · ${duplicateLocationCount}`;
+  }
+  if (reason === 'Large instructions') {
+    return `Large · ${formatTokenEstimate(estimateSkillTokens(skill.content))}`;
+  }
+  return reason;
+};
 
 const formatCompactNumber = (value: number) =>
   new Intl.NumberFormat(undefined, {

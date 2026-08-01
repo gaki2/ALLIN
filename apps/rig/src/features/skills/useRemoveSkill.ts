@@ -42,8 +42,10 @@ export const useRemoveSkill = ({
 };
 
 export const getSkillIdentity = (
-  skill: Pick<Skill, 'rootPath' | 'relativePath'>,
-) => `${skill.rootPath}:${skill.relativePath}`;
+  skill: Pick<Skill, 'rootPath' | 'relativePath'> &
+    Partial<Pick<Skill, 'isArchived'>>,
+) =>
+  `${skill.rootPath}:${skill.relativePath}:${skill.isArchived ? 'archived' : 'active'}`;
 
 const getSkillDeletionError = (error: unknown) => {
   if (

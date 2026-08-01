@@ -59,6 +59,25 @@ pub struct Skill {
     pub is_valid: bool,
     pub validation_error: Option<SkillValidationError>,
     pub updated_at: Option<String>,
+    pub is_archived: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SkillArchiveErrorCode {
+    PathNotFound,
+    NotDirectory,
+    OutsideRoot,
+    MissingSkillFile,
+    AlreadyExists,
+    MoveFailed,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillArchiveError {
+    pub code: SkillArchiveErrorCode,
+    pub message: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

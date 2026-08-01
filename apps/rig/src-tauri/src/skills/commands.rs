@@ -1,10 +1,13 @@
 use std::fs;
 use std::path::{Component, Path};
 
+use super::archive::{
+    archive_skill_at_path, list_archived_skills_from_root, restore_skill_at_path,
+};
 use super::models::{
-    BucketType, Skill, SkillDeletionError, SkillDeletionErrorCode, SkillListingError, SkillRoot,
-    SkillRootDefinition, SkillRootImportError, SkillRootKind, SkillUsage, SkillUsageError,
-    SkillUsageEvent, SkillUsageSeries, WindowType,
+    BucketType, Skill, SkillArchiveError, SkillDeletionError, SkillDeletionErrorCode,
+    SkillListingError, SkillRoot, SkillRootDefinition, SkillRootImportError, SkillRootKind,
+    SkillUsage, SkillUsageError, SkillUsageEvent, SkillUsageSeries, WindowType,
 };
 use super::root_store::{
     import_skill_root_from_path, list_imported_skill_roots, remove_imported_skill_root,
@@ -93,6 +96,43 @@ pub fn list_skills(root_path: String) -> Result<Vec<Skill>, SkillListingError> {
     }
 
     return list_skills_from_root(&path);
+}
+
+#[tauri::command]
+pub fn list_archived_skills(root_path: String) -> Result<Vec<Skill>, SkillListingError> {
+    let path = expand_path(root_path.as_str());
+
+    if !path.exists() {
+        return Err(SkillListingError {
+            code: SkillListingErrorCode::PathNotFound,
+            message: format!("Skill root path does not exist: {}", root_path),
+        });
+    }
+
+    if !path.is_dir() {
+        return Err(SkillListingError {
+            code: SkillListingErrorCode::NotDirectory,
+            message: format!("Skill root path is not a directory: {}", root_path),
+        });
+    }
+
+    list_archived_skills_from_root(&path)
+}
+
+#[tauri::command]
+pub fn archive_skill(root_path: String, relative_path: String) -> Result<(), SkillArchiveError> {
+    archive_skill_at_path(
+        &expand_path(root_path.as_str()),
+        Path::new(relative_path.as_str()),
+    )
+}
+
+#[tauri::command]
+pub fn restore_skill(root_path: String, relative_path: String) -> Result<(), SkillArchiveError> {
+    restore_skill_at_path(
+        &expand_path(root_path.as_str()),
+        Path::new(relative_path.as_str()),
+    )
 }
 
 #[tauri::command]

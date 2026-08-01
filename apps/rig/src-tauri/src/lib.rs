@@ -98,6 +98,8 @@ pub fn run() {
             plugins::commands::install_plugin_target,
             plugins::commands::list_plugin_targets,
             skills::commands::import_skill_root,
+            skills::commands::archive_skill,
+            skills::commands::list_archived_skills,
             skills::commands::list_skill_roots,
             skills::commands::list_skills,
             skills::commands::list_skill_usage_events,
@@ -105,6 +107,7 @@ pub fn run() {
             skills::commands::list_skill_usages_tendency,
             skills::commands::remove_skill,
             skills::commands::remove_skill_root,
+            skills::commands::restore_skill,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

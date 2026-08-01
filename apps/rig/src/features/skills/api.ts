@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Data, Effect } from 'effect';
 import {
   type BucketType,
+  SkillArchiveErrorSchema,
   SkillDeletionErrorSchema,
   SkillListingErrorSchema,
   SkillRootImportErrorSchema,
@@ -161,6 +162,98 @@ export const listSkills = Effect.fn('listSkills')(function* (rootPath: string) {
       }),
   });
 });
+
+export const listArchivedSkills = Effect.fn('listArchivedSkills')(function* (
+  rootPath: string,
+) {
+  const result = yield* Effect.tryPromise({
+    try: () => invoke<unknown>('list_archived_skills', { rootPath }),
+    catch: error => error,
+  }).pipe(
+    Effect.catchAll(error => {
+      const listingError = SkillListingErrorSchema.safeParse(error);
+
+      if (
+        listingError.success &&
+        ignoredSkillListingErrorCodes.has(listingError.data.code)
+      ) {
+        return Effect.succeed([]);
+      }
+
+      if (listingError.success) {
+        return Effect.fail(
+          new ListSkillsError({
+            kind: 'SkillListingError',
+            rootPath,
+            cause: listingError.data,
+          }),
+        );
+      }
+
+      return Effect.fail(
+        new ListSkillsError({
+          kind: 'InvokeError',
+          rootPath,
+          cause: error,
+        }),
+      );
+    }),
+  );
+
+  return yield* Effect.try({
+    try: () => SkillSchema.array().parse(result),
+    catch: error =>
+      new ListSkillsError({
+        kind: 'ZodParseError',
+        rootPath,
+        cause: error,
+      }),
+  });
+});
+
+export class ChangeSkillArchiveError extends Data.TaggedError(
+  'ChangeSkillArchiveError',
+)<{
+  kind: 'InvokeError' | 'SkillArchiveError';
+  cause: unknown;
+}> {}
+
+const changeSkillArchive = (command: 'archive_skill' | 'restore_skill') =>
+  Effect.fn(command)(function* ({
+    rootPath,
+    relativePath,
+  }: {
+    rootPath: string;
+    relativePath: string;
+  }) {
+    yield* Effect.tryPromise({
+      try: () => invoke<void>(command, { rootPath, relativePath }),
+      catch: error => error,
+    }).pipe(
+      Effect.catchAll(error => {
+        const archiveError = SkillArchiveErrorSchema.safeParse(error);
+
+        if (archiveError.success) {
+          return Effect.fail(
+            new ChangeSkillArchiveError({
+              kind: 'SkillArchiveError',
+              cause: archiveError.data,
+            }),
+          );
+        }
+
+        return Effect.fail(
+          new ChangeSkillArchiveError({
+            kind: 'InvokeError',
+            cause: error,
+          }),
+        );
+      }),
+    );
+  });
+
+export const archiveSkill = changeSkillArchive('archive_skill');
+export const restoreSkill = changeSkillArchive('restore_skill');
 
 export class RemoveSkillError extends Data.TaggedError('RemoveSkillError')<{
   kind: 'InvokeError' | 'SkillDeletionError';

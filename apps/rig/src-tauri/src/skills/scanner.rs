@@ -22,7 +22,7 @@ pub fn list_skills_from_root(root_path: &Path) -> Result<Vec<Skill>, SkillListin
 fn collect_skill_files(root_path: &Path) -> Result<Vec<PathBuf>, SkillListingError> {
     WalkDir::new(root_path)
         .into_iter()
-        .filter_entry(should_visit_entry)
+        .filter_entry(|entry| entry.depth() == 0 || should_visit_entry(entry))
         .filter_map(|entry| match entry {
             Ok(entry) if is_skill_file(&entry) => Some(Ok(entry.path().to_path_buf())),
             Ok(_) => None,
@@ -83,6 +83,7 @@ fn build_skill_from_file(root_path: &Path, skill_file_path: &Path) -> Skill {
                 is_valid: true,
                 validation_error: None,
                 updated_at,
+                is_archived: false,
             },
             Err(validation_error) => Skill {
                 id: relative_path.clone(),
@@ -94,6 +95,7 @@ fn build_skill_from_file(root_path: &Path, skill_file_path: &Path) -> Skill {
                 is_valid: false,
                 validation_error: Some(validation_error),
                 updated_at,
+                is_archived: false,
             },
         },
         Err(error) => Skill {
@@ -109,6 +111,7 @@ fn build_skill_from_file(root_path: &Path, skill_file_path: &Path) -> Skill {
                 message: format!("Failed to read SKILL.md: {}", error),
             }),
             updated_at,
+            is_archived: false,
         },
     }
 }

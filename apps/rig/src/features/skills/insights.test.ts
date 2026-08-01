@@ -23,6 +23,7 @@ const makeSkill = (overrides: Partial<Skill> = {}): Skill => ({
   isValid: true,
   validationError: null,
   updatedAt: '2026-08-01T00:00:00Z',
+  isArchived: false,
   ...overrides,
 });
 
@@ -38,6 +39,13 @@ describe('skill library insights', () => {
     expect(getSkillNameCounts([first, second]).get('Review animations')).toBe(
       2,
     );
+  });
+
+  it('keeps archived and active copies at the same path distinct', () => {
+    const active = makeSkill();
+    const archived = makeSkill({ isArchived: true });
+
+    expect(getSkillIdentity(active)).not.toBe(getSkillIdentity(archived));
   });
 
   it('searches names, descriptions, paths, and instructions case-insensitively', () => {
@@ -81,6 +89,9 @@ describe('skill library insights', () => {
         }),
       ),
     ).toBe('C:\\Users\\test\\.agents\\skills\\review-animations\\SKILL.md');
+    expect(getSkillFilePath(makeSkill({ isArchived: true }))).toBe(
+      '/Users/test/.agents/skills/.archive/review-animations/SKILL.md',
+    );
   });
 
   it('flags the exact large-instruction threshold', () => {

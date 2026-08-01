@@ -17,7 +17,7 @@ export const getSkillSourceLabel = (skill: Pick<Skill, 'rootPath'>) => {
 };
 
 export const getSkillFilePath = (
-  skill: Pick<Skill, 'rootPath' | 'relativePath'>,
+  skill: Pick<Skill, 'rootPath' | 'relativePath' | 'isArchived'>,
 ) => {
   const usesWindowsSeparators =
     skill.rootPath.includes('\\') && !skill.rootPath.includes('/');
@@ -27,7 +27,14 @@ export const getSkillFilePath = (
     .replace(/^[\\/]+|[\\/]+$/g, '')
     .replaceAll(usesWindowsSeparators ? '/' : '\\', separator);
 
-  return [rootPath, relativePath, 'SKILL.md'].filter(Boolean).join(separator);
+  return [
+    rootPath,
+    skill.isArchived ? '.archive' : null,
+    relativePath,
+    'SKILL.md',
+  ]
+    .filter(Boolean)
+    .join(separator);
 };
 
 export const matchesSkillSearch = (skill: Skill, query: string) => {
