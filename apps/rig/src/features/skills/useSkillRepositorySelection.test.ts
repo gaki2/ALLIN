@@ -7,7 +7,7 @@ const roots: SkillRoot[] = [
   {
     id: 'agents-global',
     path: '/Users/test/.agents/skills',
-    label: 'Agents Global Skills',
+    label: 'Codex Personal Skills',
     exists: true,
     kind: 'default',
   },

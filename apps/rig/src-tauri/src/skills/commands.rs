@@ -23,7 +23,7 @@ pub const SKILL_ROOT_DEFINITIONS: &[SkillRootDefinition] = &[
     SkillRootDefinition {
         id: "agents-global",
         path: "~/.agents/skills",
-        label: "Agents Global Skills",
+        label: "Codex Personal Skills",
     },
     SkillRootDefinition {
         id: "opencode-global",

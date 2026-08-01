@@ -18,12 +18,12 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const { skills, isLoading, error } = useFetchSkills(roots);
   const { data: skillUsages = [] } = useQuery({
-    queryKey: ['skill-usages', 'month'],
-    queryFn: () => Effect.runPromise(listSkillUsages('month')),
+    queryKey: ['skill-usages', 'week'],
+    queryFn: () => Effect.runPromise(listSkillUsages('week')),
   });
   const { data: skillUsageTendencies = [] } = useQuery({
-    queryKey: ['skill-usages-tendency', 'month', 'day'],
-    queryFn: () => Effect.runPromise(listSkillUsagesTendency('month', 'day')),
+    queryKey: ['skill-usages-tendency', 'week', 'day'],
+    queryFn: () => Effect.runPromise(listSkillUsagesTendency('week', 'day')),
   });
   const selectedSkill = selectedSkillId
     ? (skills.find(skill => getSkillIdentity(skill) === selectedSkillId) ??
@@ -57,7 +57,7 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
         <SkillContentViewer
           skill={selectedSkill}
           skills={skills}
-          monthUsages={skillUsages}
+          weekUsages={skillUsages}
           onSelectSkill={skill => setSelectedSkillId(getSkillIdentity(skill))}
           onBack={() => setSelectedSkillId(null)}
         />

@@ -2,15 +2,13 @@ import { Badge, cn, ScrollArea, toast } from '@allin/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
 import {
-  AlertTriangle,
+  Activity,
   ArrowLeft,
   BookOpenText,
   Check,
-  ChevronDown,
   Clipboard,
   Code2,
   FileWarning,
-  Layers3,
 } from 'lucide-react';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -20,9 +18,7 @@ import remarkGfm from 'remark-gfm';
 import { listSkillUsageEvents, listSkillUsages } from '../api';
 import {
   estimateSkillTokens,
-  getDuplicateSkillNames,
   getLibraryHealth,
-  getSkillReviewReasons,
   getSkillSourceLabel,
 } from '../insights';
 import type { Skill, SkillUsage, SkillUsageEvent } from '../types';
@@ -31,7 +27,7 @@ import { getSkillIdentity } from '../useRemoveSkill';
 interface SkillContentViewerProps {
   skill: Skill | null;
   skills: Skill[];
-  monthUsages: SkillUsage[];
+  weekUsages: SkillUsage[];
   onSelectSkill: (skill: Skill) => void;
   onBack: () => void;
 }
@@ -39,7 +35,7 @@ interface SkillContentViewerProps {
 export const SkillContentViewer = ({
   skill,
   skills,
-  monthUsages,
+  weekUsages,
   onSelectSkill,
   onBack,
 }: SkillContentViewerProps) => {
@@ -47,7 +43,7 @@ export const SkillContentViewer = ({
     return (
       <LibraryOverview
         skills={skills}
-        monthUsages={monthUsages}
+        weekUsages={weekUsages}
         onSelectSkill={onSelectSkill}
       />
     );
@@ -57,8 +53,7 @@ export const SkillContentViewer = ({
     <SkillInspector
       key={getSkillIdentity(skill)}
       skill={skill}
-      skills={skills}
-      monthUsages={monthUsages}
+      weekUsages={weekUsages}
       onBack={onBack}
     />
   );
@@ -66,19 +61,16 @@ export const SkillContentViewer = ({
 
 const SkillInspector = ({
   skill,
-  skills,
-  monthUsages,
+  weekUsages,
   onBack,
 }: {
   skill: Skill;
-  skills: Skill[];
-  monthUsages: SkillUsage[];
+  weekUsages: SkillUsage[];
   onBack: () => void;
 }) => {
   const [activeTab, setActiveTab] = useState<InspectorTab>(
     skill.isValid ? 'rendered' : 'source',
   );
-  const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [didCopy, setDidCopy] = useState(false);
   const skillName = skill.name;
   const {
@@ -88,19 +80,15 @@ const SkillInspector = ({
   } = useQuery({
     queryKey: ['skill-usage-events', skillName, 20],
     queryFn: () => Effect.runPromise(listSkillUsageEvents(skillName, 20)),
-    enabled: isActivityOpen,
+    enabled: activeTab === 'activity',
   });
   const { data: allUsages = [] } = useQuery({
     queryKey: ['skill-usages', 'all'],
     queryFn: () => Effect.runPromise(listSkillUsages('all')),
   });
-  const monthUsage = monthUsages.find(usage => usage.name === skill.name);
+  const weekUsage = weekUsages.find(usage => usage.name === skill.name);
   const allUsage = allUsages.find(usage => usage.name === skill.name);
-  const lastUsedAt = recentEvents[0]?.usedAt ?? allUsage?.lastUsedAt ?? null;
-  const reviewReasons = getSkillReviewReasons({
-    skill,
-    duplicateNames: getDuplicateSkillNames(skills),
-  });
+  const lastUsedAt = allUsage?.lastUsedAt ?? null;
 
   const copyContent = async () => {
     try {
@@ -166,23 +154,6 @@ const SkillInspector = ({
             ) : null}
           </div>
 
-          {reviewReasons.length > 0 ? (
-            <ul
-              className='mt-3 flex flex-wrap gap-1.5'
-              aria-label='Library review findings'
-            >
-              {reviewReasons.map(reason => (
-                <li
-                  key={reason}
-                  className='inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/8 px-2 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300'
-                >
-                  <AlertTriangle size={11} />
-                  {getReviewEvidence(reason, skill, skills)}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
           <div className='mt-4 flex items-end justify-between gap-4'>
             <div
               className='flex gap-1'
@@ -191,7 +162,7 @@ const SkillInspector = ({
             >
               <InspectorTabButton
                 icon={<BookOpenText size={14} />}
-                label='Rendered'
+                label='Instructions'
                 value='rendered'
                 isSelected={activeTab === 'rendered'}
                 disabled={!skill.isValid}
@@ -204,12 +175,19 @@ const SkillInspector = ({
                 isSelected={activeTab === 'source'}
                 onSelect={setActiveTab}
               />
+              <InspectorTabButton
+                icon={<Activity size={14} />}
+                label='Activity'
+                value='activity'
+                isSelected={activeTab === 'activity'}
+                onSelect={setActiveTab}
+              />
             </div>
             <p className='hidden text-right text-xs text-muted-foreground sm:block'>
-              Used {monthUsage?.count ?? 0}× in 30 days
+              Used {weekUsage?.count ?? 0}× in 7 days
               <span aria-hidden='true'> · </span>
               {lastUsedAt
-                ? `last ${formatRelativeTime(lastUsedAt)}`
+                ? formatRelativeTime(lastUsedAt)
                 : 'no recorded calls'}
             </p>
           </div>
@@ -235,71 +213,26 @@ const SkillInspector = ({
             aria-label={
               activeTab === 'rendered'
                 ? 'Rendered instructions'
-                : 'Skill source'
+                : activeTab === 'source'
+                  ? 'Skill source'
+                  : 'Recent skill activity'
             }
           >
             {activeTab === 'rendered' ? (
               <SkillMarkdown content={skill.content} />
-            ) : (
+            ) : activeTab === 'source' ? (
               <pre className='overflow-x-auto whitespace-pre-wrap break-words rounded-2xl border bg-muted/35 p-5 font-mono text-[13px] leading-6 text-foreground'>
                 <code>
                   {skill.content || 'This skill has no readable content.'}
                 </code>
               </pre>
-            )}
-          </section>
-
-          <section className='mt-8 border-t pt-3'>
-            <button
-              type='button'
-              aria-expanded={isActivityOpen}
-              onClick={() => setIsActivityOpen(current => !current)}
-              className='rig-pressable flex min-h-11 w-full items-center justify-between rounded-xl px-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-            >
-              <span>
-                <span className='text-sm font-semibold'>Recent calls</span>
-                <span className='ml-2 text-xs text-muted-foreground'>
-                  Diagnostic activity, kept out of the way
-                </span>
-              </span>
-              <ChevronDown
-                size={16}
-                className={cn(
-                  'text-muted-foreground transition-transform duration-150',
-                  isActivityOpen && 'rotate-180',
-                )}
+            ) : (
+              <ActivityPanel
+                events={recentEvents}
+                error={eventsError}
+                isLoading={isEventsLoading}
               />
-            </button>
-
-            {isActivityOpen ? (
-              <div className='rig-fade-in divide-y px-2' aria-live='polite'>
-                {isEventsLoading ? (
-                  <div className='py-4 text-sm text-muted-foreground'>
-                    Loading activity…
-                  </div>
-                ) : null}
-                {!isEventsLoading && eventsError ? (
-                  <div className='py-4 text-sm text-destructive'>
-                    Failed to load calls: {String(eventsError)}
-                  </div>
-                ) : null}
-                {!isEventsLoading &&
-                !eventsError &&
-                recentEvents.length === 0 ? (
-                  <div className='py-4 text-sm text-muted-foreground'>
-                    No calls have been recorded for this skill name.
-                  </div>
-                ) : null}
-                {!isEventsLoading && !eventsError
-                  ? recentEvents.map(event => (
-                      <UsageEventRow
-                        key={`${event.usedAt}:${event.source}`}
-                        event={event}
-                      />
-                    ))
-                  : null}
-              </div>
-            ) : null}
+            )}
           </section>
         </main>
       </ScrollArea>
@@ -323,83 +256,65 @@ export const SkillMarkdown = ({ content }: { content: string }) => (
 
 const LibraryOverview = ({
   skills,
-  monthUsages,
+  weekUsages,
   onSelectSkill,
 }: {
   skills: Skill[];
-  monthUsages: SkillUsage[];
+  weekUsages: SkillUsage[];
   onSelectSkill: (skill: Skill) => void;
 }) => {
   const libraryHealth = getLibraryHealth(skills);
-  const duplicateNames = getDuplicateSkillNames(skills);
   const recentlyUsed = skills
     .filter(
       skill =>
-        (monthUsages.find(usage => usage.name === skill.name)?.count ?? 0) > 0,
+        (weekUsages.find(usage => usage.name === skill.name)?.count ?? 0) > 0,
     )
     .toSorted((a, b) => {
       const aCount =
-        monthUsages.find(usage => usage.name === a.name)?.count ?? 0;
+        weekUsages.find(usage => usage.name === a.name)?.count ?? 0;
       const bCount =
-        monthUsages.find(usage => usage.name === b.name)?.count ?? 0;
+        weekUsages.find(usage => usage.name === b.name)?.count ?? 0;
       return bCount - aCount;
     })
-    .slice(0, 4);
-  const reviewSkills = skills.filter(
-    skill => getSkillReviewReasons({ skill, duplicateNames }).length > 0,
+    .slice(0, 6);
+  const callsThisWeek = weekUsages.reduce(
+    (total, usage) => total + usage.count,
+    0,
   );
 
   return (
     <ScrollArea className='h-full'>
       <div className='mx-auto flex min-h-full max-w-5xl flex-col justify-center px-8 py-10'>
         <div className='max-w-2xl'>
-          <div className='mb-5 flex size-11 items-center justify-center rounded-2xl border bg-muted/50 text-foreground shadow-sm'>
-            <Layers3 size={20} />
-          </div>
-          <p className='text-sm font-medium text-blue-600 dark:text-blue-300'>
-            Your local skill control plane
-          </p>
-          <h2 className='mt-2 text-3xl font-semibold tracking-[-0.04em]'>
-            Inspect what your agents know.
+          <h2 className='text-3xl font-semibold tracking-[-0.04em]'>
+            Choose a skill to inspect.
           </h2>
           <p className='mt-3 max-w-xl text-base leading-7 text-muted-foreground'>
-            Select a skill to read its complete instructions, understand where
-            it comes from, and review concrete library issues without sending
-            content anywhere.
+            Read its instructions, compare the source, or open recent activity
+            without leaving the library.
           </p>
         </div>
 
         <div className='mt-8 grid gap-3 md:grid-cols-3'>
           <OverviewMetric label='Skills discovered' value={skills.length} />
           <OverviewMetric
-            label='Library review'
-            value={libraryHealth.reviewCount}
-            detail={
-              libraryHealth.reviewCount > 0
-                ? `${libraryHealth.reviewCount} need review`
-                : 'No inventory issues'
-            }
+            label='Calls this week'
+            value={callsThisWeek}
+            detail={`${recentlyUsed.length} skills used in the last 7 days`}
           />
           <OverviewMetric
             label='Instructions stored'
             value={`~${formatCompactNumber(libraryHealth.totalEstimatedTokens)}`}
-            detail='Estimated tokens · local only'
+            detail='Estimated tokens'
           />
         </div>
 
-        <div className='mt-7 grid gap-6 lg:grid-cols-2'>
+        <div className='mt-7'>
           <OverviewList
-            title='Used recently'
+            title='Used this week'
             empty='Usage appears here after an agent connection records calls.'
             skills={recentlyUsed}
             onSelectSkill={onSelectSkill}
-          />
-          <OverviewList
-            title='Needs review'
-            empty='No invalid, duplicate-name, or unusually large skills.'
-            skills={reviewSkills.slice(0, 4)}
-            onSelectSkill={onSelectSkill}
-            isWarning
           />
         </div>
       </div>
@@ -430,21 +345,14 @@ const OverviewList = ({
   empty,
   skills,
   onSelectSkill,
-  isWarning = false,
 }: {
   title: string;
   empty: string;
   skills: Skill[];
   onSelectSkill: (skill: Skill) => void;
-  isWarning?: boolean;
 }) => (
   <section>
-    <h3 className='flex items-center gap-2 text-sm font-semibold'>
-      {isWarning ? (
-        <AlertTriangle size={15} className='text-amber-500' />
-      ) : null}
-      {title}
-    </h3>
+    <h3 className='text-sm font-semibold'>{title}</h3>
     <div className='mt-2 overflow-hidden rounded-2xl border bg-card'>
       {skills.length === 0 ? (
         <p className='p-4 text-sm leading-6 text-muted-foreground'>{empty}</p>
@@ -472,7 +380,7 @@ const OverviewList = ({
   </section>
 );
 
-type InspectorTab = 'rendered' | 'source';
+type InspectorTab = 'rendered' | 'source' | 'activity';
 
 const InspectorTabButton = ({
   icon,
@@ -507,6 +415,53 @@ const InspectorTabButton = ({
   </button>
 );
 
+const ActivityPanel = ({
+  events,
+  error,
+  isLoading,
+}: {
+  events: SkillUsageEvent[];
+  error: unknown;
+  isLoading: boolean;
+}) => (
+  <div
+    className='overflow-hidden rounded-2xl border bg-card'
+    aria-live='polite'
+  >
+    <div className='border-b px-4 py-3'>
+      <h2 className='text-sm font-semibold'>Recent calls</h2>
+      <p className='mt-0.5 text-xs text-muted-foreground'>
+        The latest 20 recorded calls for this skill name.
+      </p>
+    </div>
+    <div className='divide-y px-4'>
+      {isLoading ? (
+        <div className='py-5 text-sm text-muted-foreground'>
+          Loading activity…
+        </div>
+      ) : null}
+      {!isLoading && error ? (
+        <div className='py-5 text-sm text-destructive'>
+          Failed to load calls: {String(error)}
+        </div>
+      ) : null}
+      {!isLoading && !error && events.length === 0 ? (
+        <div className='py-5 text-sm text-muted-foreground'>
+          No calls have been recorded for this skill name.
+        </div>
+      ) : null}
+      {!isLoading && !error
+        ? events.map(event => (
+            <UsageEventRow
+              key={`${event.usedAt}:${event.source}`}
+              event={event}
+            />
+          ))
+        : null}
+    </div>
+  </div>
+);
+
 const UsageEventRow = ({ event }: { event: SkillUsageEvent }) => (
   <div className='flex items-center justify-between gap-4 py-3'>
     <div className='min-w-0'>
@@ -520,21 +475,6 @@ const UsageEventRow = ({ event }: { event: SkillUsageEvent }) => (
     </Badge>
   </div>
 );
-
-const getReviewEvidence = (reason: string, skill: Skill, skills: Skill[]) => {
-  if (reason === 'Duplicate name') {
-    const locationCount = skills.filter(
-      candidate => candidate.name === skill.name,
-    ).length;
-    return `Same name in ${locationCount} locations`;
-  }
-
-  if (reason === 'Large instructions') {
-    return `${formatCompactNumber(skill.content.length)} characters`;
-  }
-
-  return reason;
-};
 
 const formatCompactNumber = (value: number) =>
   new Intl.NumberFormat(undefined, {

@@ -51,7 +51,7 @@ describe('skill library insights', () => {
   });
 
   it('names known agent sources instead of showing a generic skills folder', () => {
-    expect(getSkillSourceLabel(makeSkill())).toBe('Agents');
+    expect(getSkillSourceLabel(makeSkill())).toBe('Codex');
     expect(
       getSkillSourceLabel(
         makeSkill({ rootPath: '/Users/test/.claude/skills' }),

@@ -8,7 +8,7 @@ export const estimateSkillTokens = (content: string) =>
 export const getSkillSourceLabel = (skill: Pick<Skill, 'rootPath'>) => {
   const normalizedPath = skill.rootPath.replaceAll('\\', '/');
 
-  if (normalizedPath.includes('/.agents/skills')) return 'Agents';
+  if (normalizedPath.includes('/.agents/skills')) return 'Codex';
   if (normalizedPath.includes('/.claude/skills')) return 'Claude';
   if (normalizedPath.includes('/.config/opencode/skills')) return 'OpenCode';
 

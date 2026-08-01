@@ -15,14 +15,12 @@ import {
   cn,
   ScrollArea,
 } from '@allin/ui';
-import { AlertTriangle, Search, Trash2 } from 'lucide-react';
+import { Search, Trash2 } from 'lucide-react';
 import posthog from 'posthog-js';
 import { useDeferredValue, useMemo, useState } from 'react';
 import {
   estimateSkillTokens,
-  getDuplicateSkillNames,
   getLibraryHealth,
-  getSkillReviewReasons,
   getSkillSourceLabel,
   matchesSkillSearch,
 } from '../insights';
@@ -35,12 +33,11 @@ const loadingSkeletonIds = Array.from(
   (_, index) => `skill-loading-${index}`,
 );
 
-type SkillFilter = 'all' | 'used' | 'review';
+type SkillFilter = 'all' | 'used';
 
 const skillFilters: Array<{ value: SkillFilter; label: string }> = [
   { value: 'all', label: 'All' },
-  { value: 'used', label: 'Used recently' },
-  { value: 'review', label: 'Needs review' },
+  { value: 'used', label: 'Recent · 7d' },
 ];
 
 export interface SkillListProps {
@@ -83,20 +80,13 @@ export const SkillList = ({
       new Map(skillUsageTendencies.map(tendency => [tendency.name, tendency])),
     [skillUsageTendencies],
   );
-  const duplicateNames = useMemo(
-    () => getDuplicateSkillNames(skills),
-    [skills],
-  );
   const libraryHealth = useMemo(() => getLibraryHealth(skills), [skills]);
   const visibleSkills = useMemo(() => {
     const matchingSkills = skills.filter(skill => {
       const usage = usageByName.get(skill.name);
-      const reviewReasons = getSkillReviewReasons({ skill, duplicateNames });
       const matchesQuery = matchesSkillSearch(skill, deferredSearchQuery);
       const matchesFilter =
-        filter === 'all' ||
-        (filter === 'used' && (usage?.count ?? 0) > 0) ||
-        (filter === 'review' && reviewReasons.length > 0);
+        filter === 'all' || (filter === 'used' && (usage?.count ?? 0) > 0);
 
       return matchesQuery && matchesFilter;
     });
@@ -107,7 +97,7 @@ export const SkillList = ({
 
       return bCount - aCount || a.name.localeCompare(b.name);
     });
-  }, [deferredSearchQuery, duplicateNames, filter, skills, usageByName]);
+  }, [deferredSearchQuery, filter, skills, usageByName]);
 
   if (isLoading) {
     return (
@@ -125,33 +115,11 @@ export const SkillList = ({
   return (
     <div className='flex h-full min-h-0 flex-col'>
       <div className='shrink-0 space-y-3 border-b px-4 pb-3 pt-4'>
-        <div className='flex items-center justify-between gap-3'>
-          <div>
-            <h1 className='text-lg font-semibold tracking-[-0.02em]'>
-              Library
-            </h1>
-            <p className='text-xs text-muted-foreground'>
-              {skills.length} skills across your detected context
-            </p>
-          </div>
-          <button
-            type='button'
-            className='rig-pressable flex items-center gap-2 rounded-full border bg-background px-2.5 py-1.5 text-xs font-semibold shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-            onClick={() => setFilter('review')}
-            aria-label={`${libraryHealth.reviewCount} skills need review`}
-          >
-            <span
-              className={cn(
-                'size-2 rounded-full',
-                libraryHealth.reviewCount > 0
-                  ? 'bg-amber-400'
-                  : 'bg-emerald-400',
-              )}
-            />
-            {libraryHealth.reviewCount > 0
-              ? `${libraryHealth.reviewCount} review`
-              : 'Healthy'}
-          </button>
+        <div>
+          <h1 className='text-lg font-semibold tracking-[-0.02em]'>Library</h1>
+          <p className='text-xs text-muted-foreground'>
+            {skills.length} skills across your detected context
+          </p>
         </div>
 
         <label className='relative block'>
@@ -185,9 +153,6 @@ export const SkillList = ({
               )}
             >
               {option.label}
-              {option.value === 'review' && libraryHealth.reviewCount > 0
-                ? ` ${libraryHealth.reviewCount}`
-                : ''}
             </button>
           ))}
         </fieldset>
@@ -217,10 +182,6 @@ export const SkillList = ({
             const tendency = tendencyByName.get(skill.name);
             const count = usage?.count ?? 0;
             const isRemovingSkill = removingSkillId === skillIdentity;
-            const reviewReasons = getSkillReviewReasons({
-              skill,
-              duplicateNames,
-            });
 
             return (
               <ContextMenu key={skillIdentity}>
@@ -262,13 +223,6 @@ export const SkillList = ({
                           >
                             Invalid
                           </Badge>
-                        ) : null}
-                        {reviewReasons.length > 0 && skill.isValid ? (
-                          <AlertTriangle
-                            size={13}
-                            aria-label={reviewReasons.join(', ')}
-                            className='shrink-0 text-amber-500'
-                          />
                         ) : null}
                       </span>
 
