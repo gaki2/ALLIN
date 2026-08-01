@@ -91,10 +91,17 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
               <Settings2 size={16} />
               Settings
             </div>
-            <div className='mt-2 flex items-center gap-2 rounded-xl bg-background px-3 py-2.5 text-sm font-medium shadow-xs'>
-              <PlugZap size={15} />
-              Connections
-            </div>
+            <nav className='mt-2' aria-label='Settings sections'>
+              <div
+                aria-current='page'
+                className='relative flex items-center gap-2.5 overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.07] py-2 pl-3 pr-2.5 text-sm font-semibold shadow-xs before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r-full before:bg-foreground'
+              >
+                <span className='flex size-7 shrink-0 items-center justify-center rounded-lg bg-foreground text-background shadow-xs'>
+                  <PlugZap size={14} />
+                </span>
+                <span>Connections</span>
+              </div>
+            </nav>
           </aside>
 
           <section className='min-h-0 overflow-y-auto'>
