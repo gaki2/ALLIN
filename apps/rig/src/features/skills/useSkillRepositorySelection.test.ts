@@ -25,9 +25,8 @@ describe('skill project scopes', () => {
     expect(getVisibleRoots(roots, GLOBAL_REPOSITORY_ID)).toEqual(roots);
   });
 
-  it('combines global skills with the selected project profile', () => {
+  it('shows only the selected project root', () => {
     expect(getVisibleRoots(roots, 'project-rig').map(root => root.id)).toEqual([
-      'agents-global',
       'project-rig',
     ]);
   });

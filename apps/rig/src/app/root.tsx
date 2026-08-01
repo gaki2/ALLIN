@@ -28,9 +28,7 @@ export const Root = () => {
           <RepositorySelector
             roots={roots}
             selectedRepositoryId={repositorySelection.selectedRepositoryId}
-            isOpen={repositorySelection.isOpen}
             isImporting={importSkillRoot.isImporting}
-            onOpenChange={repositorySelection.setIsOpen}
             onSelectRepository={repositorySelection.selectRepository}
             onImportRepository={importSkillRoot.importFromFolder}
           />

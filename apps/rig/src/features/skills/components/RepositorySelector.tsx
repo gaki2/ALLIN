@@ -1,5 +1,5 @@
-import { cn, Popover, PopoverContent, PopoverTrigger } from '@allin/ui';
-import { Check, ChevronsUpDown, Folder, Layers3, Plus } from 'lucide-react';
+import { cn } from '@allin/ui';
+import { Folder, Layers3, LoaderCircle, Plus } from 'lucide-react';
 import posthog from 'posthog-js';
 import type { SkillRoot } from '../types';
 
@@ -8,9 +8,7 @@ const GLOBAL_REPOSITORY_ID = 'global';
 interface RepositorySelectorProps {
   roots: SkillRoot[];
   selectedRepositoryId: string;
-  isOpen: boolean;
   isImporting: boolean;
-  onOpenChange: (isOpen: boolean) => void;
   onSelectRepository: (repositoryId: string) => void;
   onImportRepository: () => void;
 }
@@ -18,163 +16,93 @@ interface RepositorySelectorProps {
 export const RepositorySelector = ({
   roots,
   selectedRepositoryId,
-  isOpen,
   isImporting,
-  onOpenChange,
   onSelectRepository,
   onImportRepository,
 }: RepositorySelectorProps) => {
   const repositoryRoots = roots.filter(root => root.kind === 'repository');
-  const selectedRepository = repositoryRoots.find(
-    root => root.id === selectedRepositoryId,
-  );
-  const selectedLabel = selectedRepository?.label ?? 'All skills';
+
+  const selectRepository = (repositoryId: string, repositoryLabel: string) => {
+    onSelectRepository(repositoryId);
+    posthog.capture('repository_selected', {
+      repository_id: repositoryId,
+      repository_label: repositoryLabel,
+    });
+  };
 
   return (
-    <Popover open={isOpen} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          type='button'
-          className='rig-pressable flex h-9 min-w-0 max-w-64 items-center gap-2 rounded-full border bg-background/80 px-2.5 text-left shadow-xs transition-[background-color,transform] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-        >
-          <span className='flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-300'>
-            {selectedRepository ? <Folder size={14} /> : <Layers3 size={14} />}
-          </span>
-          <span className='min-w-0 flex-1'>
-            <span className='block truncate text-xs font-semibold leading-4 sm:text-sm'>
-              {selectedLabel}
-            </span>
-          </span>
+    <nav
+      className='flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+      aria-label='Skill repositories'
+    >
+      <RepositoryButton
+        icon={<Layers3 size={14} />}
+        label='All skills'
+        isSelected={selectedRepositoryId === GLOBAL_REPOSITORY_ID}
+        onClick={() => selectRepository(GLOBAL_REPOSITORY_ID, 'All skills')}
+      />
 
-          <ChevronsUpDown
-            size={16}
-            className='shrink-0 text-muted-foreground'
-          />
-        </button>
-      </PopoverTrigger>
-
-      <PopoverContent
-        align='start'
-        sideOffset={8}
-        className='w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl p-3 shadow-2xl'
-      >
-        <p className='px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-          Skill context
-        </p>
-
-        <RepositoryOption
-          icon={<Layers3 size={18} />}
-          label='All skills'
-          path='Auto-detected agents + project locations'
-          exists
-          isSelected={selectedRepositoryId === GLOBAL_REPOSITORY_ID}
-          onClick={() => {
-            onSelectRepository(GLOBAL_REPOSITORY_ID);
-            posthog.capture('repository_selected', {
-              repository_id: GLOBAL_REPOSITORY_ID,
-              repository_label: 'All skills',
-            });
-          }}
+      {repositoryRoots.map(root => (
+        <RepositoryButton
+          key={root.id}
+          icon={<Folder size={14} />}
+          label={root.label}
+          title={root.exists ? root.path : `Unavailable · ${root.path}`}
+          isSelected={selectedRepositoryId === root.id}
+          isAvailable={root.exists}
+          onClick={() => selectRepository(root.id, root.label)}
         />
+      ))}
 
-        {repositoryRoots.map(root => (
-          <RepositoryOption
-            key={root.id}
-            icon={<Folder size={18} />}
-            label={root.label}
-            path={root.path}
-            exists={root.exists}
-            isSelected={selectedRepositoryId === root.id}
-            onClick={() => {
-              onSelectRepository(root.id);
-              posthog.capture('repository_selected', {
-                repository_id: root.id,
-                repository_label: root.label,
-              });
-            }}
-          />
-        ))}
-
-        <div className='my-3 border-t' />
-
-        <button
-          type='button'
-          onClick={onImportRepository}
-          disabled={isImporting}
-          className='flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-        >
-          <span className='flex size-9 shrink-0 items-center justify-center rounded-lg border border-dashed bg-background text-muted-foreground'>
-            <Plus size={18} />
-          </span>
-
-          <span className='min-w-0'>
-            <span className='block text-sm font-semibold'>
-              {isImporting ? 'Adding project...' : 'Add project folder...'}
-            </span>
-            <span className='mt-0.5 block font-mono text-xs text-muted-foreground'>
-              Optional fallback for a location Rig cannot detect
-            </span>
-          </span>
-        </button>
-      </PopoverContent>
-    </Popover>
+      <button
+        type='button'
+        aria-label={isImporting ? 'Adding repository' : 'Add repository'}
+        title={isImporting ? 'Adding repository…' : 'Add repository'}
+        disabled={isImporting}
+        onClick={onImportRepository}
+        className='rig-pressable flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed bg-background/80 text-muted-foreground shadow-xs hover:border-solid hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60'
+      >
+        {isImporting ? (
+          <LoaderCircle size={15} className='animate-spin' />
+        ) : (
+          <Plus size={16} />
+        )}
+      </button>
+    </nav>
   );
 };
 
-interface RepositoryOptionProps {
-  icon: React.ReactNode;
-  label: string;
-  path: string;
-  exists: boolean;
-  isSelected: boolean;
-  onClick: () => void;
-}
-
-const RepositoryOption = ({
+const RepositoryButton = ({
   icon,
   label,
-  path,
-  exists,
+  title,
   isSelected,
+  isAvailable = true,
   onClick,
-}: RepositoryOptionProps) => {
-  return (
-    <button
-      type='button'
-      onClick={onClick}
-      className={cn(
-        'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        isSelected ? 'bg-muted' : 'hover:bg-muted/70',
-      )}
-    >
-      <span
-        className={cn(
-          'flex size-9 shrink-0 items-center justify-center rounded-lg',
-          isSelected
-            ? 'bg-foreground text-background'
-            : 'border bg-background text-foreground',
-        )}
-      >
-        {icon}
-      </span>
-
-      <span className='min-w-0 flex-1'>
-        <span className='block truncate text-sm font-semibold'>{label}</span>
-        <span
-          className={cn(
-            'mt-0.5 block truncate font-mono text-xs',
-            exists
-              ? 'text-muted-foreground'
-              : 'text-amber-600 dark:text-amber-300',
-          )}
-        >
-          {exists ? path : `Unavailable · ${path}`}
-        </span>
-      </span>
-
-      {isSelected && <Check size={18} className='shrink-0 text-blue-500' />}
-    </button>
-  );
-};
+}: {
+  icon: React.ReactNode;
+  label: string;
+  title?: string;
+  isSelected: boolean;
+  isAvailable?: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    type='button'
+    aria-pressed={isSelected}
+    title={title}
+    onClick={onClick}
+    className={cn(
+      'rig-pressable flex h-9 max-w-48 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-medium shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      isSelected
+        ? 'border-foreground bg-foreground text-background'
+        : 'border-border bg-background/80 text-foreground hover:bg-muted',
+      !isAvailable && 'border-amber-500/30 text-amber-700 dark:text-amber-300',
+    )}
+  >
+    <span className='shrink-0'>{icon}</span>
+    <span className='truncate'>{label}</span>
+  </button>
+);
 
 export { GLOBAL_REPOSITORY_ID };

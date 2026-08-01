@@ -18,7 +18,6 @@ export const useSkillRepositorySelection = ({
       GLOBAL_REPOSITORY_ID
     );
   });
-  const [isOpen, setIsOpen] = useState(false);
   const selectedRepositoryId =
     storedRepositoryId === GLOBAL_REPOSITORY_ID ||
     roots.some(root => root.id === storedRepositoryId)
@@ -28,15 +27,12 @@ export const useSkillRepositorySelection = ({
   const selectRepository = (repositoryId: string) => {
     setStoredRepositoryId(repositoryId);
     window.localStorage.setItem(LAST_SKILL_CONTEXT_KEY, repositoryId);
-    setIsOpen(false);
     onRepositoryChange();
   };
 
   return {
     selectedRepositoryId,
     visibleRoots: getVisibleRoots(roots, selectedRepositoryId),
-    isOpen,
-    setIsOpen,
     selectRepository,
   };
 };
@@ -49,7 +45,5 @@ export const getVisibleRoots = (
     return roots;
   }
 
-  return roots.filter(
-    root => root.kind === 'default' || root.id === selectedRepositoryId,
-  );
+  return roots.filter(root => root.id === selectedRepositoryId);
 };
