@@ -89,6 +89,7 @@ const SkillInspector = ({
   const weekUsage = weekUsages.find(usage => usage.name === skill.name);
   const allUsage = allUsages.find(usage => usage.name === skill.name);
   const lastUsedAt = allUsage?.lastUsedAt ?? null;
+  const description = skill.description || 'No description provided.';
 
   const copyContent = async () => {
     try {
@@ -102,61 +103,46 @@ const SkillInspector = ({
 
   return (
     <div className='flex h-full min-h-0 flex-col bg-background'>
-      <header className='shrink-0 border-b bg-background/90 px-6 py-4 backdrop-blur-lg'>
+      <header className='shrink-0 border-b bg-background/90 px-6 py-2.5 backdrop-blur-lg'>
         <div className='mx-auto max-w-5xl'>
           <button
             type='button'
             onClick={onBack}
-            className='rig-pressable mb-3 -ml-2 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden'
+            className='rig-pressable mb-2 -ml-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden'
           >
             <ArrowLeft size={16} />
             Library
           </button>
-          <div className='flex min-w-0 items-start justify-between gap-4'>
-            <div className='min-w-0'>
-              <div className='flex min-w-0 items-center gap-2'>
-                <h1 className='truncate text-xl font-semibold tracking-[-0.025em]'>
-                  {skill.name}
-                </h1>
-                {!skill.isValid ? (
-                  <Badge variant='destructive'>Invalid</Badge>
-                ) : null}
-              </div>
-              <p className='mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-muted-foreground'>
-                {skill.description || 'No description provided.'}
-              </p>
-            </div>
-
+          <div className='flex min-w-0 items-center gap-3'>
+            <h1 className='max-w-[35%] shrink-0 truncate text-lg font-semibold tracking-[-0.025em]'>
+              {skill.name}
+            </h1>
+            {!skill.isValid ? (
+              <Badge variant='destructive' className='shrink-0'>
+                Invalid
+              </Badge>
+            ) : null}
+            <p
+              className='min-w-0 flex-1 truncate text-sm text-muted-foreground'
+              title={description}
+            >
+              {description}
+            </p>
             <button
               type='button'
               onClick={copyContent}
-              className='rig-pressable inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border bg-background px-2.5 text-xs font-medium shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+              className='rig-pressable inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border bg-background px-2 text-xs font-medium shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
             >
-              {didCopy ? <Check size={14} /> : <Clipboard size={14} />}
-              {didCopy ? 'Copied' : 'Copy'}
+              {didCopy ? <Check size={13} /> : <Clipboard size={13} />}
+              <span className='hidden sm:inline'>
+                {didCopy ? 'Copied' : 'Copy'}
+              </span>
             </button>
           </div>
 
-          <div className='mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground'>
-            <span className='font-mono'>{getSkillSourceLabel(skill)}</span>
-            <span aria-hidden='true'>·</span>
-            <span className='font-mono'>{skill.relativePath}/SKILL.md</span>
-            <span aria-hidden='true'>·</span>
-            <span>
-              ~{formatCompactNumber(estimateSkillTokens(skill.content))}{' '}
-              estimated tokens
-            </span>
-            {skill.updatedAt ? (
-              <>
-                <span aria-hidden='true'>·</span>
-                <span>Updated {formatRelativeTime(skill.updatedAt)}</span>
-              </>
-            ) : null}
-          </div>
-
-          <div className='mt-4 flex items-end justify-between gap-4'>
+          <div className='mt-2 flex min-w-0 items-center gap-4'>
             <div
-              className='flex gap-1'
+              className='flex shrink-0 gap-1'
               role='tablist'
               aria-label='Skill content view'
             >
@@ -183,19 +169,24 @@ const SkillInspector = ({
                 onSelect={setActiveTab}
               />
             </div>
-            <p className='hidden text-right text-xs text-muted-foreground sm:block'>
-              Used {weekUsage?.count ?? 0}× in 7 days
+            <p
+              className='ml-auto hidden min-w-0 truncate text-right text-xs text-muted-foreground sm:block'
+              title={`${getSkillSourceLabel(skill)} · ${skill.relativePath}/SKILL.md · ~${formatCompactNumber(estimateSkillTokens(skill.content))} estimated tokens${skill.updatedAt ? ` · Updated ${formatRelativeTime(skill.updatedAt)}` : ''}`}
+            >
+              {getSkillSourceLabel(skill)}
+              <span aria-hidden='true'> · </span>~
+              {formatCompactNumber(estimateSkillTokens(skill.content))} tokens
               <span aria-hidden='true'> · </span>
-              {lastUsedAt
-                ? formatRelativeTime(lastUsedAt)
-                : 'no recorded calls'}
+              {weekUsage?.count ?? 0}× / 7d
+              <span aria-hidden='true'> · </span>
+              {lastUsedAt ? formatRelativeTime(lastUsedAt) : 'no calls'}
             </p>
           </div>
         </div>
       </header>
 
       <ScrollArea className='min-h-0 flex-1'>
-        <main className='mx-auto w-full max-w-5xl px-6 py-7'>
+        <main className='mx-auto w-full max-w-5xl px-6 py-5'>
           {skill.validationError ? (
             <div className='mb-5 flex gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive'>
               <FileWarning size={18} className='mt-0.5 shrink-0' />
@@ -404,7 +395,7 @@ const InspectorTabButton = ({
     disabled={disabled}
     onClick={() => onSelect(value)}
     className={cn(
-      'rig-pressable inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40',
+      'rig-pressable inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40',
       isSelected
         ? 'bg-foreground text-background'
         : 'text-muted-foreground hover:bg-muted hover:text-foreground',
