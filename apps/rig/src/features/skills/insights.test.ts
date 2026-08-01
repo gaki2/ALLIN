@@ -3,6 +3,7 @@ import {
   estimateSkillTokens,
   getDuplicateSkillNames,
   getLibraryHealth,
+  getSkillNameCounts,
   getSkillReviewReasons,
   getSkillSourceLabel,
   LARGE_SKILL_CHARACTER_THRESHOLD,
@@ -32,6 +33,9 @@ describe('skill library insights', () => {
     expect(getSkillIdentity(first)).not.toBe(getSkillIdentity(second));
     expect(getDuplicateSkillNames([first, second])).toEqual(
       new Set(['Review animations']),
+    );
+    expect(getSkillNameCounts([first, second]).get('Review animations')).toBe(
+      2,
     );
   });
 

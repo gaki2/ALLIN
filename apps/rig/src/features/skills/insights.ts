@@ -28,12 +28,18 @@ export const matchesSkillSearch = (skill: Skill, query: string) => {
     .includes(normalizedQuery);
 };
 
-export const getDuplicateSkillNames = (skills: Skill[]) => {
+export const getSkillNameCounts = (skills: Skill[]) => {
   const counts = new Map<string, number>();
 
   for (const skill of skills) {
     counts.set(skill.name, (counts.get(skill.name) ?? 0) + 1);
   }
+
+  return counts;
+};
+
+export const getDuplicateSkillNames = (skills: Skill[]) => {
+  const counts = getSkillNameCounts(skills);
 
   return new Set(
     [...counts.entries()]

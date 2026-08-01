@@ -14,13 +14,17 @@ import {
   ContextMenuTrigger,
   cn,
   ScrollArea,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from '@allin/ui';
-import { Search, Trash2 } from 'lucide-react';
+import { Search, Trash2, TriangleAlert } from 'lucide-react';
 import posthog from 'posthog-js';
 import { useDeferredValue, useMemo, useState } from 'react';
 import {
   estimateSkillTokens,
   getLibraryHealth,
+  getSkillNameCounts,
   getSkillSourceLabel,
   matchesSkillSearch,
 } from '../insights';
@@ -81,6 +85,7 @@ export const SkillList = ({
     [skillUsageTendencies],
   );
   const libraryHealth = useMemo(() => getLibraryHealth(skills), [skills]);
+  const skillNameCounts = useMemo(() => getSkillNameCounts(skills), [skills]);
   const visibleSkills = useMemo(() => {
     const matchingSkills = skills.filter(skill => {
       const usage = usageByName.get(skill.name);
@@ -181,6 +186,7 @@ export const SkillList = ({
             const usage = usageByName.get(skill.name);
             const tendency = tendencyByName.get(skill.name);
             const count = usage?.count ?? 0;
+            const duplicateLocationCount = skillNameCounts.get(skill.name) ?? 0;
             const isRemovingSkill = removingSkillId === skillIdentity;
 
             return (
@@ -223,6 +229,11 @@ export const SkillList = ({
                           >
                             Invalid
                           </Badge>
+                        ) : null}
+                        {duplicateLocationCount > 1 ? (
+                          <DuplicateSkillIndicator
+                            locationCount={duplicateLocationCount}
+                          />
                         ) : null}
                       </span>
 
@@ -310,6 +321,31 @@ export const SkillList = ({
     </div>
   );
 };
+
+const DuplicateSkillIndicator = ({
+  locationCount,
+}: {
+  locationCount: number;
+}) => (
+  <Tooltip delayDuration={300}>
+    <TooltipTrigger asChild>
+      <span
+        className='inline-flex shrink-0 text-amber-500'
+        role='img'
+        aria-label={`Duplicate skill name found in ${locationCount} locations`}
+      >
+        <TriangleAlert size={13} />
+      </span>
+    </TooltipTrigger>
+    <TooltipContent side='right' sideOffset={6} className='max-w-64 leading-5'>
+      <p className='font-medium'>Duplicate skill name</p>
+      <p className='mt-0.5 opacity-80'>
+        Found in {locationCount} locations. Activity is grouped by name, so
+        calls from these copies may appear together.
+      </p>
+    </TooltipContent>
+  </Tooltip>
+);
 
 const formatTokenEstimate = (tokens: number) =>
   `~${formatCompactNumber(tokens)} tokens`;

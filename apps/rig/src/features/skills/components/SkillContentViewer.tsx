@@ -1,4 +1,12 @@
-import { Badge, cn, ScrollArea, toast } from '@allin/ui';
+import {
+  Badge,
+  cn,
+  ScrollArea,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  toast,
+} from '@allin/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
 import {
@@ -54,6 +62,9 @@ export const SkillContentViewer = ({
       key={getSkillIdentity(skill)}
       skill={skill}
       weekUsages={weekUsages}
+      duplicateLocationCount={
+        skills.filter(candidate => candidate.name === skill.name).length
+      }
       onBack={onBack}
     />
   );
@@ -62,10 +73,12 @@ export const SkillContentViewer = ({
 const SkillInspector = ({
   skill,
   weekUsages,
+  duplicateLocationCount,
   onBack,
 }: {
   skill: Skill;
   weekUsages: SkillUsage[];
+  duplicateLocationCount: number;
   onBack: () => void;
 }) => {
   const [activeTab, setActiveTab] = useState<InspectorTab>(
@@ -121,6 +134,9 @@ const SkillInspector = ({
               <Badge variant='destructive' className='shrink-0'>
                 Invalid
               </Badge>
+            ) : null}
+            {duplicateLocationCount > 1 ? (
+              <DuplicateSkillBadge locationCount={duplicateLocationCount} />
             ) : null}
             <p
               className='min-w-0 flex-1 truncate text-sm text-muted-foreground'
@@ -230,6 +246,27 @@ const SkillInspector = ({
     </div>
   );
 };
+
+const DuplicateSkillBadge = ({ locationCount }: { locationCount: number }) => (
+  <Tooltip delayDuration={300}>
+    <TooltipTrigger asChild>
+      <Badge
+        variant='outline'
+        tabIndex={0}
+        className='shrink-0 border-amber-500/30 bg-amber-500/8 text-[10px] text-amber-700 dark:text-amber-300'
+      >
+        Duplicate · {locationCount}
+      </Badge>
+    </TooltipTrigger>
+    <TooltipContent sideOffset={6} className='max-w-64 leading-5'>
+      <p className='font-medium'>Duplicate skill name</p>
+      <p className='mt-0.5 opacity-80'>
+        This name exists in {locationCount} locations. Check the source before
+        editing; activity is grouped by skill name.
+      </p>
+    </TooltipContent>
+  </Tooltip>
+);
 
 export const SkillMarkdown = ({ content }: { content: string }) => (
   <article className='prose prose-neutral max-w-[76ch] dark:prose-invert prose-headings:tracking-[-0.02em] prose-a:text-blue-600 prose-pre:overflow-x-auto'>
