@@ -8,8 +8,8 @@ import {
   listPluginTargets,
 } from './api';
 import {
-  PluginInstallErrorSchema,
   type PluginInstallError,
+  PluginInstallErrorSchema,
   type PluginTarget,
   type PluginToolId,
 } from './types';
@@ -53,7 +53,10 @@ export const usePluginSetup = () => {
 
   const setIsOpen = (nextIsOpen: boolean) => setIsOpenState(nextIsOpen);
 
-  const openPluginSetup = () => setIsOpenState(true);
+  const openPluginSetup = () => {
+    setIsOpenState(true);
+    void pluginTargetsQuery.refetch();
+  };
 
   const installPlugin = (pluginId: PluginToolId) => {
     installPluginMutation.mutate(pluginId);
