@@ -1,42 +1,66 @@
+import { useQuery } from '@tanstack/react-query';
+import { Effect } from 'effect';
 import { useState } from 'react';
 import { ContentLayout } from '@/layouts/ContentLayout';
 import { SidebarLayout } from '@/layouts/SidebarLayout';
-import type { Skill, SkillRoot as SkillRootModel } from '../types';
+import { listSkillUsages, listSkillUsagesTendency } from '../api';
+import type { SkillRoot as SkillRootModel } from '../types';
+import { useFetchSkills } from '../useFetchSkills';
 import { getSkillIdentity, useRemoveSkill } from '../useRemoveSkill';
 import { SkillContentViewer } from './SkillContentViewer';
-import { SkillSidebar } from './SkillSidebar';
+import { SkillList } from './SkillList';
 
 interface SkillRootProps {
   roots: SkillRootModel[];
 }
 
 export const SkillRoot = ({ roots }: SkillRootProps) => {
-  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
+  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const { skills, isLoading, error } = useFetchSkills(roots);
+  const { data: skillUsages = [] } = useQuery({
+    queryKey: ['skill-usages', 'month'],
+    queryFn: () => Effect.runPromise(listSkillUsages('month')),
+  });
+  const { data: skillUsageTendencies = [] } = useQuery({
+    queryKey: ['skill-usages-tendency', 'month', 'day'],
+    queryFn: () => Effect.runPromise(listSkillUsagesTendency('month', 'day')),
+  });
+  const selectedSkill = selectedSkillId
+    ? (skills.find(skill => getSkillIdentity(skill) === selectedSkillId) ??
+      null)
+    : null;
   const { removeSkill, removingSkillId } = useRemoveSkill({
     onRemoved: removedSkill => {
-      setSelectedSkill(currentSkill =>
-        currentSkill &&
-        getSkillIdentity(currentSkill) === getSkillIdentity(removedSkill)
-          ? null
-          : currentSkill,
+      setSelectedSkillId(currentId =>
+        currentId === getSkillIdentity(removedSkill) ? null : currentId,
       );
     },
   });
 
   return (
     <div className='flex min-h-0 flex-1'>
-      <SidebarLayout>
-        <SkillSidebar
-          roots={roots}
+      <SidebarLayout className={selectedSkill ? 'max-md:hidden' : undefined}>
+        <SkillList
+          skills={skills}
           selectedSkill={selectedSkill}
-          onSelectSkill={setSelectedSkill}
+          skillUsages={skillUsages}
+          skillUsageTendencies={skillUsageTendencies}
+          isLoading={isLoading}
+          error={error ? String(error) : null}
+          onSelectSkill={skill => setSelectedSkillId(getSkillIdentity(skill))}
           onRemoveSkill={removeSkill}
           removingSkillId={removingSkillId}
         />
       </SidebarLayout>
 
-      <ContentLayout>
-        <SkillContentViewer skill={selectedSkill} />
+      <ContentLayout className={!selectedSkill ? 'max-md:hidden' : undefined}>
+        <SkillContentViewer
+          skill={selectedSkill}
+          skills={skills}
+          monthUsages={skillUsages}
+          onSelectSkill={skill => setSelectedSkillId(getSkillIdentity(skill))}
+          onBack={() => setSelectedSkillId(null)}
+        />
       </ContentLayout>
     </div>
   );
