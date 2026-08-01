@@ -11,8 +11,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
 import {
   Activity,
-  Archive,
-  ArchiveRestore,
   ArrowLeft,
   BookOpenText,
   Check,
@@ -21,6 +19,8 @@ import {
   FileText,
   FileWarning,
   LoaderCircle,
+  Power,
+  PowerOff,
 } from 'lucide-react';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -190,7 +190,7 @@ const SkillInspector = ({
             ) : null}
             {skill.isArchived ? (
               <Badge variant='secondary' className='shrink-0 text-[10px]'>
-                Archived
+                Disabled
               </Badge>
             ) : null}
             {duplicateLocationCount > 1 ? (
@@ -202,41 +202,56 @@ const SkillInspector = ({
             >
               {description}
             </p>
-            <button
-              type='button'
-              disabled={isChangingArchiveState}
-              aria-busy={isChangingArchiveState}
-              aria-label={
-                isChangingArchiveState
-                  ? skill.isArchived
-                    ? 'Restoring skill'
-                    : 'Archiving skill'
-                  : skill.isArchived
-                    ? 'Restore skill'
-                    : 'Archive skill'
-              }
-              onClick={() =>
-                skill.isArchived ? onRestoreSkill(skill) : onArchiveSkill(skill)
-              }
-              className='rig-pressable inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border bg-background px-2 text-xs font-medium shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-50'
-            >
-              {isChangingArchiveState ? (
-                <LoaderCircle size={13} className='shrink-0 animate-spin' />
-              ) : skill.isArchived ? (
-                <ArchiveRestore size={13} className='shrink-0' />
-              ) : (
-                <Archive size={13} className='shrink-0' />
-              )}
-              <span className='hidden sm:inline'>
-                {isChangingArchiveState
-                  ? skill.isArchived
-                    ? 'Restoring…'
-                    : 'Archiving…'
-                  : skill.isArchived
-                    ? 'Restore'
-                    : 'Archive'}
-              </span>
-            </button>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <button
+                  type='button'
+                  disabled={isChangingArchiveState}
+                  aria-busy={isChangingArchiveState}
+                  aria-label={
+                    isChangingArchiveState
+                      ? skill.isArchived
+                        ? 'Enabling skill'
+                        : 'Disabling skill'
+                      : skill.isArchived
+                        ? 'Enable skill'
+                        : 'Disable skill'
+                  }
+                  onClick={() =>
+                    skill.isArchived
+                      ? onRestoreSkill(skill)
+                      : onArchiveSkill(skill)
+                  }
+                  className='rig-pressable inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border bg-background px-2 text-xs font-medium shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-50'
+                >
+                  {isChangingArchiveState ? (
+                    <LoaderCircle size={13} className='shrink-0 animate-spin' />
+                  ) : skill.isArchived ? (
+                    <Power size={13} className='shrink-0' />
+                  ) : (
+                    <PowerOff size={13} className='shrink-0' />
+                  )}
+                  <span className='hidden sm:inline'>
+                    {isChangingArchiveState
+                      ? skill.isArchived
+                        ? 'Enabling…'
+                        : 'Disabling…'
+                      : skill.isArchived
+                        ? 'Enable'
+                        : 'Disable'}
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side='bottom'
+                sideOffset={6}
+                className='max-w-72 leading-5'
+              >
+                {skill.isArchived
+                  ? 'Returns this skill to agent discovery at its original location.'
+                  : 'Stops agents from discovering this skill. Its files stay on disk, and you can enable it again anytime.'}
+              </TooltipContent>
+            </Tooltip>
             <button
               type='button'
               onClick={copyContent}
@@ -373,34 +388,30 @@ const ManagementOverview = ({
   mode: 'review' | 'archived';
   hasItems: boolean;
 }) => {
-  const isArchived = mode === 'archived';
+  const isDisabled = mode === 'archived';
 
   return (
     <div className='flex h-full items-center justify-center px-8 py-10'>
       <div className='max-w-md text-center'>
         <div className='mx-auto flex size-11 items-center justify-center rounded-2xl border bg-card shadow-xs'>
-          {isArchived ? (
-            <ArchiveRestore size={19} />
-          ) : (
-            <FileWarning size={19} />
-          )}
+          {isDisabled ? <Power size={19} /> : <FileWarning size={19} />}
         </div>
         <h2 className='mt-4 text-2xl font-semibold tracking-[-0.035em]'>
           {hasItems
-            ? isArchived
-              ? 'Choose an archived skill.'
+            ? isDisabled
+              ? 'Choose a disabled skill.'
               : 'Choose a skill to review.'
-            : isArchived
-              ? 'No archived skills.'
+            : isDisabled
+              ? 'No disabled skills.'
               : 'Nothing needs review.'}
         </h2>
         <p className='mt-2 text-sm leading-6 text-muted-foreground'>
           {hasItems
-            ? isArchived
-              ? 'Inspect its instructions and source before restoring it to agent discovery.'
-              : 'Review the evidence before archiving anything. Archived files stay on disk.'
-            : isArchived
-              ? 'Skills archived from this scope will stay available here for restoration.'
+            ? isDisabled
+              ? 'Inspect its instructions and source before enabling it for agent discovery again.'
+              : 'Review the evidence before disabling anything. Disabled skill files stay on disk.'
+            : isDisabled
+              ? 'Skills disabled from this scope will stay available here so you can enable them again.'
               : 'No invalid, duplicate, or unusually large instructions were found in this scope.'}
         </p>
       </div>

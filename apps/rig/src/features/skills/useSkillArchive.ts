@@ -28,11 +28,11 @@ export const useSkillArchive = ({
     onSuccess: (_, skill) => {
       void refreshSkills();
       onRestored?.(skill);
-      toast.success(`${skill.name} restored`, {
+      toast.success(`${skill.name} enabled`, {
         description: 'The skill is discoverable by agents again.',
       });
     },
-    onError: (error, skill) => showArchiveError('restore', skill, error),
+    onError: (error, skill) => showArchiveError('enable', skill, error),
   });
 
   const archiveMutation = useMutation({
@@ -40,15 +40,15 @@ export const useSkillArchive = ({
     onSuccess: (_, skill) => {
       void refreshSkills();
       onArchived?.(skill);
-      toast.success(`${skill.name} archived`, {
-        description: 'Removed from discovery without deleting its files.',
+      toast.success(`${skill.name} disabled`, {
+        description: 'No longer discoverable by agents. Files remain on disk.',
         action: {
           label: 'Undo',
           onClick: () => restoreMutation.mutate(skill),
         },
       });
     },
-    onError: (error, skill) => showArchiveError('archive', skill, error),
+    onError: (error, skill) => showArchiveError('disable', skill, error),
   });
   const changingSkill =
     archiveMutation.variables ?? restoreMutation.variables ?? null;
@@ -62,7 +62,7 @@ export const useSkillArchive = ({
 };
 
 const showArchiveError = (
-  action: 'archive' | 'restore',
+  action: 'disable' | 'enable',
   skill: Skill,
   error: unknown,
 ) => {

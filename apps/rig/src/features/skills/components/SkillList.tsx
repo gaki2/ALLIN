@@ -20,9 +20,9 @@ import {
   TooltipTrigger,
 } from '@allin/ui';
 import {
-  Archive,
-  ArchiveRestore,
   ChevronLeft,
+  Power,
+  PowerOff,
   Search,
   Trash2,
   TriangleAlert,
@@ -133,7 +133,7 @@ export const SkillList = ({
         },
         {
           value: 'archived',
-          label: `Archived · ${archivedSkills.length}`,
+          label: `Disabled · ${archivedSkills.length}`,
         },
       ]
     : skillFilters;
@@ -204,11 +204,11 @@ export const SkillList = ({
             <div className='mt-1 flex items-end justify-between gap-3'>
               <div>
                 <h1 className='text-lg font-semibold tracking-[-0.02em]'>
-                  {managementView === 'archived' ? 'Archived' : 'Needs review'}
+                  {managementView === 'archived' ? 'Disabled' : 'Needs review'}
                 </h1>
                 <p className='text-xs text-muted-foreground'>
                   {managementView === 'archived'
-                    ? 'Kept on disk and excluded from discovery'
+                    ? 'Kept on disk and excluded from agent discovery'
                     : 'Issues that may affect discovery or instruction size'}
                 </p>
               </div>
@@ -290,7 +290,7 @@ export const SkillList = ({
               {deferredSearchQuery
                 ? 'No skills match your search.'
                 : managementView === 'archived'
-                  ? 'No archived skills.'
+                  ? 'No disabled skills.'
                   : managementView === 'review'
                     ? 'No skills need review.'
                     : 'No skills match this view.'}
@@ -388,7 +388,7 @@ export const SkillList = ({
                       <span className='mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground/80'>
                         {managementView === 'archived' ? (
                           <span className='rounded-full bg-muted px-1.5 py-0.5 font-medium text-muted-foreground'>
-                            Kept on disk
+                            Disabled · kept on disk
                           </span>
                         ) : null}
                         <span>
@@ -425,8 +425,8 @@ export const SkillList = ({
                       disabled={isChangingArchiveState}
                       onSelect={() => onRestoreSkill(skill)}
                     >
-                      <ArchiveRestore />
-                      Restore skill
+                      <Power />
+                      Enable skill
                     </ContextMenuItem>
                   ) : (
                     <>
@@ -434,8 +434,8 @@ export const SkillList = ({
                         disabled={isChangingArchiveState}
                         onSelect={() => onArchiveSkill(skill)}
                       >
-                        <Archive />
-                        Archive skill
+                        <PowerOff />
+                        Disable skill
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem
@@ -461,7 +461,7 @@ export const SkillList = ({
           discoverable instructions
         </span>
         {managementView ? (
-          <span className='shrink-0'>{archivedSkills.length} kept on disk</span>
+          <span className='shrink-0'>{archivedSkills.length} disabled</span>
         ) : (
           <button
             type='button'
@@ -473,7 +473,7 @@ export const SkillList = ({
           >
             Review {libraryHealth.reviewCount}
             {archivedSkills.length > 0
-              ? ` · Archived ${archivedSkills.length}`
+              ? ` · Disabled ${archivedSkills.length}`
               : ''}
           </button>
         )}
