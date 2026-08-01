@@ -241,68 +241,73 @@ export const SkillList = ({
           />
         </label>
 
-        <fieldset className='flex gap-1 overflow-x-auto'>
-          <legend className='sr-only'>Filter skills</legend>
-          {visibleFilters.map(option => (
-            <button
-              key={option.value}
-              type='button'
-              aria-pressed={
-                managementView
-                  ? managementView === option.value
-                  : filter === option.value
-              }
-              onClick={() => {
-                if (option.value === 'review' || option.value === 'archived') {
-                  onManagementViewChange(option.value);
-                  onClearSelection();
-                  return;
-                }
-                setFilter(option.value);
-              }}
-              className={cn(
-                'rig-pressable shrink-0 rounded-full px-2.5 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                (
+        <div className='flex min-w-0 items-center justify-between gap-2'>
+          <fieldset className='flex min-w-0 gap-1 overflow-x-auto'>
+            <legend className='sr-only'>Filter skills</legend>
+            {visibleFilters.map(option => (
+              <button
+                key={option.value}
+                type='button'
+                aria-pressed={
                   managementView
                     ? managementView === option.value
                     : filter === option.value
-                )
-                  ? 'bg-foreground text-background'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </fieldset>
+                }
+                onClick={() => {
+                  if (
+                    option.value === 'review' ||
+                    option.value === 'archived'
+                  ) {
+                    onManagementViewChange(option.value);
+                    onClearSelection();
+                    return;
+                  }
+                  setFilter(option.value);
+                }}
+                className={cn(
+                  'rig-pressable shrink-0 rounded-full px-2.5 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  (
+                    managementView
+                      ? managementView === option.value
+                      : filter === option.value
+                  )
+                    ? 'bg-foreground text-background'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </fieldset>
 
-        {!managementView ? (
-          <nav
-            aria-label='Manage skills'
-            className='grid grid-cols-2 gap-1.5 rounded-xl border bg-muted/35 p-1.5'
-          >
-            <ManagementShortcut
-              icon={ListChecks}
-              label='Review'
-              count={libraryHealth.reviewCount}
-              tooltip='Skills with duplicate names, invalid files, or unusually large instructions.'
-              onClick={() => {
-                onManagementViewChange('review');
-                onClearSelection();
-              }}
-            />
-            <ManagementShortcut
-              icon={PowerOff}
-              label='Disabled'
-              count={archivedSkills.length}
-              tooltip='Skills kept on disk but excluded from agent discovery.'
-              onClick={() => {
-                onManagementViewChange('archived');
-                onClearSelection();
-              }}
-            />
-          </nav>
-        ) : null}
+          {!managementView ? (
+            <nav
+              aria-label='Manage skills'
+              className='flex shrink-0 items-center gap-0.5 border-l pl-1.5'
+            >
+              <ManagementShortcut
+                icon={ListChecks}
+                label='Review'
+                count={libraryHealth.reviewCount}
+                tooltip='Skills with duplicate names, invalid files, or unusually large instructions.'
+                onClick={() => {
+                  onManagementViewChange('review');
+                  onClearSelection();
+                }}
+              />
+              <ManagementShortcut
+                icon={PowerOff}
+                label='Disabled'
+                count={archivedSkills.length}
+                tooltip='Skills kept on disk but excluded from agent discovery.'
+                onClick={() => {
+                  onManagementViewChange('archived');
+                  onClearSelection();
+                }}
+              />
+            </nav>
+          ) : null}
+        </div>
 
         {error ? (
           <div className='rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive'>
@@ -551,11 +556,11 @@ const ManagementShortcut = ({
         type='button'
         onClick={onClick}
         aria-label={`${label}: ${count}`}
-        className='rig-pressable flex min-w-0 items-center gap-2 rounded-lg border border-transparent bg-background/70 px-2.5 py-2 text-left text-xs font-medium text-muted-foreground shadow-xs hover:border-border hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+        className='rig-pressable inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
       >
-        <Icon size={14} className='shrink-0' />
-        <span className='min-w-0 flex-1 truncate'>{label}</span>
-        <span className='shrink-0 tabular-nums text-foreground'>{count}</span>
+        <Icon size={12} className='shrink-0' />
+        <span>{label}</span>
+        <span className='tabular-nums text-muted-foreground/75'>{count}</span>
       </button>
     </TooltipTrigger>
     <TooltipContent side='bottom' sideOffset={6} className='max-w-64 leading-5'>
