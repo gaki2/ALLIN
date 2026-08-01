@@ -1,9 +1,7 @@
-import { cn, Popover, PopoverContent, PopoverTrigger, toast } from '@allin/ui';
-import { Check, ChevronsUpDown, Folder, Home, Plus } from 'lucide-react';
+import { cn, Popover, PopoverContent, PopoverTrigger } from '@allin/ui';
+import { Check, ChevronsUpDown, Folder, Layers3, Plus } from 'lucide-react';
 import posthog from 'posthog-js';
-import { useEffect } from 'react';
 import type { SkillRoot } from '../types';
-import { useRemoveSkillRoot } from '../useRemoveSkillRoot';
 
 const GLOBAL_REPOSITORY_ID = 'global';
 
@@ -30,41 +28,20 @@ export const RepositorySelector = ({
   const selectedRepository = repositoryRoots.find(
     root => root.id === selectedRepositoryId,
   );
-  const selectedLabel = selectedRepository?.label ?? 'Global';
-  const { removeRoot } = useRemoveSkillRoot();
-
-  useEffect(() => {
-    if (
-      selectedRepository?.kind === 'repository' &&
-      !selectedRepository?.exists
-    ) {
-      toast.error(`${selectedLabel} repository does not exist.`, {
-        description: 'This repository is removed from the list.',
-      });
-
-      removeRoot(selectedRepositoryId);
-      onSelectRepository(GLOBAL_REPOSITORY_ID);
-    }
-  }, [
-    onSelectRepository,
-    removeRoot,
-    selectedLabel,
-    selectedRepository,
-    selectedRepositoryId,
-  ]);
+  const selectedLabel = selectedRepository?.label ?? 'All skills';
 
   return (
     <Popover open={isOpen} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <button
           type='button'
-          className='flex h-14 w-78 ml-2 items-center gap-3 rounded-sm px-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+          className='rig-pressable flex h-9 min-w-0 max-w-64 items-center gap-2 rounded-full border bg-background/80 px-2.5 text-left shadow-xs transition-[background-color,transform] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
         >
-          <span className='flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background'>
-            {selectedRepository ? <Folder size={18} /> : <Home size={18} />}
+          <span className='flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-300'>
+            {selectedRepository ? <Folder size={14} /> : <Layers3 size={14} />}
           </span>
           <span className='min-w-0 flex-1'>
-            <span className='block truncate text-sm font-semibold leading-4'>
+            <span className='block truncate text-xs font-semibold leading-4 sm:text-sm'>
               {selectedLabel}
             </span>
           </span>
@@ -78,23 +55,24 @@ export const RepositorySelector = ({
 
       <PopoverContent
         align='start'
-        sideOffset={0}
-        className='w-78 shadow-2xl rounded-2xl p-3'
+        sideOffset={8}
+        className='w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl p-3 shadow-2xl'
       >
         <p className='px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-          Repository
+          Skill context
         </p>
 
         <RepositoryOption
-          icon={<Home size={18} />}
-          label='Global'
-          path='Default skill roots'
+          icon={<Layers3 size={18} />}
+          label='All skills'
+          path='Auto-detected agents + project locations'
+          exists
           isSelected={selectedRepositoryId === GLOBAL_REPOSITORY_ID}
           onClick={() => {
             onSelectRepository(GLOBAL_REPOSITORY_ID);
             posthog.capture('repository_selected', {
               repository_id: GLOBAL_REPOSITORY_ID,
-              repository_label: 'Global',
+              repository_label: 'All skills',
             });
           }}
         />
@@ -105,6 +83,7 @@ export const RepositorySelector = ({
             icon={<Folder size={18} />}
             label={root.label}
             path={root.path}
+            exists={root.exists}
             isSelected={selectedRepositoryId === root.id}
             onClick={() => {
               onSelectRepository(root.id);
@@ -130,10 +109,10 @@ export const RepositorySelector = ({
 
           <span className='min-w-0'>
             <span className='block text-sm font-semibold'>
-              {isImporting ? 'Importing repository...' : 'Import repository...'}
+              {isImporting ? 'Adding project...' : 'Add project folder...'}
             </span>
             <span className='mt-0.5 block font-mono text-xs text-muted-foreground'>
-              From a local folder
+              Optional fallback for a location Rig cannot detect
             </span>
           </span>
         </button>
@@ -146,6 +125,7 @@ interface RepositoryOptionProps {
   icon: React.ReactNode;
   label: string;
   path: string;
+  exists: boolean;
   isSelected: boolean;
   onClick: () => void;
 }
@@ -154,6 +134,7 @@ const RepositoryOption = ({
   icon,
   label,
   path,
+  exists,
   isSelected,
   onClick,
 }: RepositoryOptionProps) => {
@@ -179,8 +160,15 @@ const RepositoryOption = ({
 
       <span className='min-w-0 flex-1'>
         <span className='block truncate text-sm font-semibold'>{label}</span>
-        <span className='mt-0.5 block truncate font-mono text-xs text-muted-foreground'>
-          {path}
+        <span
+          className={cn(
+            'mt-0.5 block truncate font-mono text-xs',
+            exists
+              ? 'text-muted-foreground'
+              : 'text-amber-600 dark:text-amber-300',
+          )}
+        >
+          {exists ? path : `Unavailable · ${path}`}
         </span>
       </span>
 

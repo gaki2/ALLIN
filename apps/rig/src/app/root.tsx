@@ -1,8 +1,5 @@
 import { Button } from '@allin/ui';
-import { PlugZap } from 'lucide-react';
-import posthog from 'posthog-js';
-import { appPaths, useAppNavigation } from '@/app/navigation';
-import { DashboardRoot } from '@/features/dashboard/components/DashboardRoot';
+import { Activity, Blocks, PlugZap } from 'lucide-react';
 import { PluginSetupDialog } from '@/features/plugins/components/PluginSetupDialog';
 import { usePluginSetup } from '@/features/plugins/usePluginSetup';
 import { RepositorySelector } from '@/features/skills/components/RepositorySelector';
@@ -13,7 +10,6 @@ import { useSkillRoots } from '@/features/skills/useSkillRoots';
 import { HeaderLayout } from '@/layouts/HeaderLayout';
 
 export const Root = () => {
-  const navigation = useAppNavigation();
   const pluginSetup = usePluginSetup();
 
   const { data: roots = [] } = useSkillRoots();
@@ -25,24 +21,23 @@ export const Root = () => {
     onImported: importedRoot =>
       repositorySelection.selectRepository(importedRoot.id),
   });
-  const renderCurrentPath = () => {
-    switch (navigation.currentPath) {
-      case appPaths.skills:
-        return (
-          <SkillRoot
-            key={repositorySelection.selectedRepositoryId}
-            roots={repositorySelection.visibleRoots}
-          />
-        );
-      case appPaths.dashboard:
-        return <DashboardRoot roots={repositorySelection.visibleRoots} />;
-    }
-  };
+  const connectedAgentCount = pluginSetup.pluginTargets.filter(
+    target => target.isInstalled,
+  ).length;
 
   return (
-    <main className='flex h-dvh flex-col overflow-hidden bg-background text-foreground'>
+    <main className='rig-shell flex h-dvh flex-col overflow-hidden bg-background text-foreground'>
       <HeaderLayout>
-        <div className='flex w-full items-center justify-between pr-4'>
+        <div className='flex w-full items-center gap-2 px-3 sm:px-4'>
+          <div className='flex shrink-0 items-center gap-2 pr-1'>
+            <span className='flex size-8 items-center justify-center rounded-[10px] bg-foreground text-background shadow-sm'>
+              <Blocks size={17} strokeWidth={2.2} />
+            </span>
+            <span className='hidden text-sm font-semibold tracking-[-0.02em] sm:block'>
+              Rig
+            </span>
+          </div>
+
           <RepositorySelector
             roots={roots}
             selectedRepositoryId={repositorySelection.selectedRepositoryId}
@@ -52,36 +47,31 @@ export const Root = () => {
             onSelectRepository={repositorySelection.selectRepository}
             onImportRepository={importSkillRoot.importFromFolder}
           />
-          <div className='flex items-center gap-2'>
+          <div className='ml-auto flex items-center gap-2'>
+            <div className='hidden items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/8 px-2.5 py-1.5 text-xs font-medium text-emerald-700 md:flex dark:text-emerald-300'>
+              <Activity size={13} />
+              Local & private
+            </div>
             <Button
               type='button'
-              variant='outline'
+              variant='ghost'
               size='sm'
               onClick={pluginSetup.openPluginSetup}
+              className='rig-pressable rounded-full border bg-background/80 px-3 shadow-xs'
             >
               <PlugZap size={15} />
-              Plugins
+              <span className='hidden sm:inline'>Connect agents</span>
+              <span className='text-muted-foreground'>
+                {connectedAgentCount}/{pluginSetup.pluginTargets.length}
+              </span>
               {pluginSetup.hasIncompletePlugin && (
                 <span className='ml-1 size-2 rounded-full bg-blue-500' />
               )}
             </Button>
-
-            <div className='flex rounded-xl border bg-muted/40 p-1'>
-              <ViewToggleButton
-                label='Skills'
-                isSelected={navigation.isCurrentPath(appPaths.skills)}
-                onClick={() => navigation.navigate(appPaths.skills)}
-              />
-              <ViewToggleButton
-                label='Dashboard'
-                isSelected={navigation.isCurrentPath(appPaths.dashboard)}
-                onClick={() => navigation.navigate(appPaths.dashboard)}
-              />
-            </div>
           </div>
         </div>
       </HeaderLayout>
-      {renderCurrentPath()}
+      <SkillRoot roots={repositorySelection.visibleRoots} />
       <PluginSetupDialog
         open={pluginSetup.isOpen}
         pluginTargets={pluginSetup.pluginTargets}
@@ -94,32 +84,5 @@ export const Root = () => {
         errorMessage={pluginSetup.errorMessage}
       />
     </main>
-  );
-};
-
-interface ViewToggleButtonProps {
-  label: string;
-  isSelected: boolean;
-  onClick: () => void;
-}
-
-const ViewToggleButton = ({
-  label,
-  isSelected,
-  onClick,
-}: ViewToggleButtonProps) => {
-  return (
-    <button
-      type='button'
-      aria-pressed={isSelected}
-      onClick={onClick}
-      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-        isSelected
-          ? 'bg-background text-foreground shadow-sm'
-          : 'text-muted-foreground hover:text-foreground'
-      }`}
-    >
-      {label}
-    </button>
   );
 };
