@@ -26,7 +26,6 @@ tauri-plugin-mcp-bridge = "0.11"
 tauri-plugin-log = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-dialog = "2"
-aisdk = { path = "/Users/gaki2/Documents/aisdk-rust", features = ["full"] }
 tokio = { version = "1.49.0", features = ["full"] }
 futures = "0.3.31"
 dotenvy = "0.15.7"

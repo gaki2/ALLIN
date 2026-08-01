@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Manager};
 
 use super::models::{
@@ -52,23 +53,52 @@ pub fn import_skill_root_from_path(
         return Ok(imported_skill_root_to_skill_root(existing.clone()));
     }
 
-    if imported_roots.iter().any(|root| root.id == label) {
-        return Err(SkillRootImportError {
-            code: SkillRootImportErrorCode::DuplicateId,
-            message: format!("A skill root with id '{}' already exists", label),
-        });
-    }
+    let id = unique_root_id(&label, &path, &imported_roots);
 
-    let imported = ImportedSkillRoot {
-        id: label.clone(),
-        path,
-        label,
-    };
+    let imported = ImportedSkillRoot { id, path, label };
 
     imported_roots.push(imported.clone());
     save_imported_skill_roots(app, &imported_roots)?;
 
     Ok(imported_skill_root_to_skill_root(imported))
+}
+
+fn unique_root_id(label: &str, path: &str, existing: &[ImportedSkillRoot]) -> String {
+    if !existing.iter().any(|root| root.id == label) {
+        return label.to_string();
+    }
+
+    let digest = Sha256::digest(path.as_bytes());
+    let suffix = digest[..4]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+
+    format!("{label}-{suffix}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keeps_readable_label_as_first_root_id() {
+        assert_eq!(unique_root_id("rig", "/work/rig", &[]), "rig");
+    }
+
+    #[test]
+    fn disambiguates_same_named_project_paths() {
+        let existing = vec![ImportedSkillRoot {
+            id: "rig".to_string(),
+            path: "/work/rig".to_string(),
+            label: "rig".to_string(),
+        }];
+
+        let id = unique_root_id("rig", "/archive/rig", &existing);
+
+        assert!(id.starts_with("rig-"));
+        assert_eq!(id.len(), 12);
+    }
 }
 
 pub fn remove_imported_skill_root(
