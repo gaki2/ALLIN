@@ -21,7 +21,6 @@ import {
 } from '@allin/ui';
 import {
   ChevronLeft,
-  ListChecks,
   Power,
   PowerOff,
   Search,
@@ -220,9 +219,37 @@ export const SkillList = ({
             <h1 className='text-lg font-semibold tracking-[-0.02em]'>
               Library
             </h1>
-            <p className='text-xs text-muted-foreground'>
-              {skills.length} discoverable skills
-            </p>
+            <div className='mt-0.5 flex min-w-0 items-center justify-between gap-2'>
+              <p className='truncate text-xs text-muted-foreground'>
+                {skills.length} discoverable skills
+              </p>
+              <nav
+                aria-label='Library status'
+                className='flex shrink-0 items-center gap-0.5'
+              >
+                <ManagementShortcut
+                  label='Review'
+                  count={libraryHealth.reviewCount}
+                  tooltip='Skills with duplicate names, invalid files, or unusually large instructions.'
+                  onClick={() => {
+                    onManagementViewChange('review');
+                    onClearSelection();
+                  }}
+                />
+                <span aria-hidden='true' className='text-muted-foreground/40'>
+                  ·
+                </span>
+                <ManagementShortcut
+                  label='Disabled'
+                  count={archivedSkills.length}
+                  tooltip='Skills kept on disk but excluded from agent discovery.'
+                  onClick={() => {
+                    onManagementViewChange('archived');
+                    onClearSelection();
+                  }}
+                />
+              </nav>
+            </div>
           </div>
         )}
 
@@ -241,73 +268,40 @@ export const SkillList = ({
           />
         </label>
 
-        <div className='flex min-w-0 items-center justify-between gap-2'>
-          <fieldset className='flex min-w-0 gap-1 overflow-x-auto'>
-            <legend className='sr-only'>Filter skills</legend>
-            {visibleFilters.map(option => (
-              <button
-                key={option.value}
-                type='button'
-                aria-pressed={
+        <fieldset className='flex min-w-0 gap-1 overflow-x-auto'>
+          <legend className='sr-only'>Filter skills</legend>
+          {visibleFilters.map(option => (
+            <button
+              key={option.value}
+              type='button'
+              aria-pressed={
+                managementView
+                  ? managementView === option.value
+                  : filter === option.value
+              }
+              onClick={() => {
+                if (option.value === 'review' || option.value === 'archived') {
+                  onManagementViewChange(option.value);
+                  onClearSelection();
+                  return;
+                }
+                setFilter(option.value);
+              }}
+              className={cn(
+                'rig-pressable shrink-0 rounded-full px-2.5 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                (
                   managementView
                     ? managementView === option.value
                     : filter === option.value
-                }
-                onClick={() => {
-                  if (
-                    option.value === 'review' ||
-                    option.value === 'archived'
-                  ) {
-                    onManagementViewChange(option.value);
-                    onClearSelection();
-                    return;
-                  }
-                  setFilter(option.value);
-                }}
-                className={cn(
-                  'rig-pressable shrink-0 rounded-full px-2.5 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  (
-                    managementView
-                      ? managementView === option.value
-                      : filter === option.value
-                  )
-                    ? 'bg-foreground text-background'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </fieldset>
-
-          {!managementView ? (
-            <nav
-              aria-label='Manage skills'
-              className='flex shrink-0 items-center gap-0.5 border-l pl-1.5'
+                )
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
             >
-              <ManagementShortcut
-                icon={ListChecks}
-                label='Review'
-                count={libraryHealth.reviewCount}
-                tooltip='Skills with duplicate names, invalid files, or unusually large instructions.'
-                onClick={() => {
-                  onManagementViewChange('review');
-                  onClearSelection();
-                }}
-              />
-              <ManagementShortcut
-                icon={PowerOff}
-                label='Disabled'
-                count={archivedSkills.length}
-                tooltip='Skills kept on disk but excluded from agent discovery.'
-                onClick={() => {
-                  onManagementViewChange('archived');
-                  onClearSelection();
-                }}
-              />
-            </nav>
-          ) : null}
-        </div>
+              {option.label}
+            </button>
+          ))}
+        </fieldset>
 
         {error ? (
           <div className='rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive'>
@@ -538,13 +532,11 @@ export const SkillList = ({
 };
 
 const ManagementShortcut = ({
-  icon: Icon,
   label,
   count,
   tooltip,
   onClick,
 }: {
-  icon: typeof ListChecks;
   label: string;
   count: number;
   tooltip: string;
@@ -556,11 +548,12 @@ const ManagementShortcut = ({
         type='button'
         onClick={onClick}
         aria-label={`${label}: ${count}`}
-        className='rig-pressable inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+        className='rig-pressable inline-flex h-6 items-baseline gap-1 rounded-md px-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
       >
-        <Icon size={12} className='shrink-0' />
         <span>{label}</span>
-        <span className='tabular-nums text-muted-foreground/75'>{count}</span>
+        <span className='font-medium tabular-nums text-foreground/75'>
+          {count}
+        </span>
       </button>
     </TooltipTrigger>
     <TooltipContent side='bottom' sideOffset={6} className='max-w-64 leading-5'>
