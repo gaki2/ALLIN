@@ -41,27 +41,22 @@ export const Root = () => {
       const removalToastId = toast.success(`“${root.label}” removed from Rig`, {
         description: 'The folder and its files were not deleted.',
         duration: 10_000,
-        action: (
-          <Button
-            type='button'
-            size='sm'
-            onClick={() => {
-              void importSkillRoot
-                .importFromPath(root.path, wasSelected)
-                .then(() => {
-                  toast.dismiss(removalToastId);
-                  toast.success(`“${root.label}” restored`);
-                })
-                .catch(() =>
-                  toast.error(`Couldn’t restore “${root.label}”`, {
-                    description: 'Add the repository again with the + button.',
-                  }),
-                );
-            }}
-          >
-            Undo
-          </Button>
-        ),
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void importSkillRoot
+              .importFromPath(root.path, wasSelected)
+              .then(() => {
+                toast.dismiss(removalToastId);
+                toast.success(`“${root.label}” restored`);
+              })
+              .catch(() =>
+                toast.error(`Couldn’t restore “${root.label}”`, {
+                  description: 'Add the repository again with the + button.',
+                }),
+              );
+          },
+        },
       });
       return true;
     } catch {
