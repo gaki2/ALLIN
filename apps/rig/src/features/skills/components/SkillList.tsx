@@ -34,6 +34,7 @@ import {
   estimateSkillTokens,
   getDuplicateSkillNames,
   getLibraryHealth,
+  getSkillFilePath,
   getSkillNameCounts,
   getSkillReviewReasons,
   getSkillSourceLabel,
@@ -53,6 +54,9 @@ const loadingSkeletonIds = Array.from(
   { length: 6 },
   (_, index) => `skill-loading-${index}`,
 );
+
+const normalizeFilePath = (value: string) =>
+  value.replaceAll('\\', '/').replace(/\/+$/, '');
 
 type SkillFilter = 'all' | 'used';
 const skillFilters: Array<{ value: SkillFilter; label: string }> = [
@@ -122,8 +126,14 @@ export const SkillList = ({
       new Map(skillUsageTendencies.map(tendency => [tendency.name, tendency])),
     [skillUsageTendencies],
   );
-  const updateByName = useMemo(
-    () => new Map(skillUpdates.map(update => [update.name, update])),
+  const updateByPath = useMemo(
+    () =>
+      new Map(
+        skillUpdates.map(update => [
+          normalizeFilePath(update.installPath),
+          update,
+        ]),
+      ),
     [skillUpdates],
   );
   const updateCount = useMemo(
@@ -181,7 +191,8 @@ export const SkillList = ({
               duplicateNames: duplicateSkillNames,
             }).length > 0
           : managementView === 'updates'
-            ? updateByName.get(skill.name)?.state === 'updateAvailable'
+            ? updateByPath.get(normalizeFilePath(getSkillFilePath(skill)))
+                ?.state === 'updateAvailable'
             : managementView === 'archived' ||
               filter === 'all' ||
               (filter === 'used' && (usage?.count ?? 0) > 0);
@@ -202,7 +213,7 @@ export const SkillList = ({
     filter,
     managementView,
     skills,
-    updateByName,
+    updateByPath,
     usageByName,
   ]);
 
@@ -437,7 +448,9 @@ export const SkillList = ({
               skill,
               duplicateNames: duplicateSkillNames,
             });
-            const updateStatus = updateByName.get(skill.name);
+            const updateStatus = updateByPath.get(
+              normalizeFilePath(getSkillFilePath(skill)),
+            );
 
             return (
               <ContextMenu key={skillIdentity}>

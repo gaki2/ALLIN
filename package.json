@@ -30,5 +30,10 @@
     "turbo": "catalog:cli",
     "typescript": "catalog:types"
   },
-  "packageManager": "pnpm@9.6.0"
+  "packageManager": "pnpm@9.6.0",
+  "pnpm": {
+    "overrides": {
+      "@pierre/diffs>shiki": "4.4.1"
+    }
+  }
 }

@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use futures::{stream, StreamExt};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::fs::expand_path;
 
@@ -36,25 +36,28 @@ pub struct SkillUpdateStatus {
     pub name: String,
     pub source: String,
     pub source_url: Option<String>,
+    pub install_path: String,
     pub state: SkillUpdateState,
     pub checked_at: String,
     pub message: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct SkillLock {
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct SkillLock {
     #[serde(default)]
-    skills: HashMap<String, LockedSkill>,
+    pub(crate) skills: HashMap<String, LockedSkill>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct LockedSkill {
-    source: String,
-    source_type: String,
-    source_url: Option<String>,
-    skill_path: String,
-    skill_folder_hash: String,
+pub(crate) struct LockedSkill {
+    pub(crate) source: String,
+    pub(crate) source_type: String,
+    pub(crate) source_url: Option<String>,
+    pub(crate) skill_path: String,
+    pub(crate) skill_folder_hash: String,
+    #[serde(default)]
+    pub(crate) r#ref: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -100,13 +103,13 @@ pub async fn check_global_skill_updates() -> Vec<SkillUpdateStatus> {
     statuses
 }
 
-fn read_global_skill_lock() -> Option<SkillLock> {
+pub(crate) fn read_global_skill_lock() -> Option<SkillLock> {
     let lock_path = global_skill_lock_path();
     let contents = fs::read_to_string(lock_path).ok()?;
     serde_json::from_str(&contents).ok()
 }
 
-fn global_skill_lock_path() -> PathBuf {
+pub(crate) fn global_skill_lock_path() -> PathBuf {
     if let Some(state_home) = std::env::var_os("XDG_STATE_HOME") {
         let xdg_path = PathBuf::from(state_home)
             .join("skills")
@@ -138,13 +141,14 @@ async fn check_locked_skills(skills: HashMap<String, LockedSkill>) -> Vec<SkillU
         }
     };
 
-    let mut github_sources: HashMap<String, Vec<(String, LockedSkill)>> = HashMap::new();
+    let mut github_sources: HashMap<(String, Option<String>), Vec<(String, LockedSkill)>> =
+        HashMap::new();
     let mut statuses = Vec::new();
 
     for (name, skill) in skills {
         if skill.source_type == "github" {
             github_sources
-                .entry(skill.source.clone())
+                .entry((skill.source.clone(), skill.r#ref.clone()))
                 .or_default()
                 .push((name, skill));
         } else {
@@ -157,13 +161,15 @@ async fn check_locked_skills(skills: HashMap<String, LockedSkill>) -> Vec<SkillU
         }
     }
 
-    let source_results = stream::iter(github_sources.into_iter().map(|(source, skills)| {
-        let client = client.clone();
-        async move {
-            let result = fetch_source_tree(&client, &source).await;
-            (skills, result)
-        }
-    }))
+    let source_results = stream::iter(github_sources.into_iter().map(
+        |((source, git_ref), skills)| {
+            let client = client.clone();
+            async move {
+                let result = fetch_source_tree(&client, &source, git_ref.as_deref()).await;
+                (skills, result)
+            }
+        },
+    ))
     .buffer_unordered(MAX_CONCURRENT_REQUESTS)
     .collect::<Vec<_>>()
     .await;
@@ -187,8 +193,12 @@ async fn check_locked_skills(skills: HashMap<String, LockedSkill>) -> Vec<SkillU
     statuses
 }
 
-async fn fetch_source_tree(client: &reqwest::Client, source: &str) -> Result<SourceCheck, String> {
-    let url = format!("https://api.github.com/repos/{source}/git/trees/HEAD?recursive=1");
+async fn fetch_source_tree(
+    client: &reqwest::Client,
+    source: &str,
+    git_ref: Option<&str>,
+) -> Result<SourceCheck, String> {
+    let url = source_tree_url(source, git_ref)?;
     let response = client
         .get(url)
         .header("Accept", "application/vnd.github+json")
@@ -220,6 +230,17 @@ async fn fetch_source_tree(client: &reqwest::Client, source: &str) -> Result<Sou
     })
 }
 
+fn source_tree_url(source: &str, git_ref: Option<&str>) -> Result<url::Url, String> {
+    let git_ref = git_ref.unwrap_or("HEAD");
+    let mut url = url::Url::parse(&format!("https://api.github.com/repos/{source}/git/trees"))
+        .map_err(|error| format!("Could not build the GitHub request: {error}"))?;
+    url.path_segments_mut()
+        .map_err(|_| "Could not build the GitHub request.".to_string())?
+        .push(git_ref);
+    url.query_pairs_mut().append_pair("recursive", "1");
+    Ok(url)
+}
+
 fn status_from_source_check(
     name: String,
     skill: LockedSkill,
@@ -238,6 +259,7 @@ fn status_from_source_check(
 
     match latest_hash {
         Some(latest_hash) => SkillUpdateStatus {
+            install_path: global_skill_file_path(&name).to_string_lossy().to_string(),
             name,
             source: skill.source,
             source_url: skill.source_url,
@@ -265,12 +287,27 @@ fn unavailable_status(
     message: String,
 ) -> SkillUpdateStatus {
     SkillUpdateStatus {
+        install_path: global_skill_file_path(&name).to_string_lossy().to_string(),
         name,
         source: skill.source,
         source_url: skill.source_url,
         state: SkillUpdateState::CheckUnavailable,
         checked_at: checked_at.to_string(),
         message: Some(message),
+    }
+}
+
+pub(crate) fn global_skill_directory(name: &str) -> PathBuf {
+    expand_path("~/.agents/skills").join(name)
+}
+
+fn global_skill_file_path(name: &str) -> PathBuf {
+    global_skill_directory(name).join("SKILL.md")
+}
+
+pub(crate) async fn clear_update_cache() {
+    if let Some(cache) = UPDATE_CACHE.get() {
+        *cache.lock().await = None;
     }
 }
 
@@ -293,6 +330,7 @@ mod tests {
             source_url: Some("https://github.com/example/skills".to_string()),
             skill_path: path.to_string(),
             skill_folder_hash: hash.to_string(),
+            r#ref: None,
         }
     }
 
@@ -352,5 +390,15 @@ mod tests {
 
         assert!(matches!(status.state, SkillUpdateState::CheckUnavailable));
         assert!(status.message.is_some());
+    }
+
+    #[test]
+    fn checks_the_locked_ref_instead_of_always_using_head() {
+        let url = source_tree_url("example/skills", Some("release/v2")).unwrap();
+
+        assert_eq!(
+            url.as_str(),
+            "https://api.github.com/repos/example/skills/git/trees/release%2Fv2?recursive=1"
+        );
     }
 }

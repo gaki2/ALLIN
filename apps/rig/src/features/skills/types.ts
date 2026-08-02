@@ -137,9 +137,47 @@ export const SkillUpdateStatusSchema = z.object({
   name: z.string(),
   source: z.string(),
   sourceUrl: z.string().nullable(),
+  installPath: z.string(),
   state: SkillUpdateStateSchema,
   checkedAt: z.string(),
   message: z.string().nullable(),
+});
+
+export const SkillVersionActionSchema = z.enum([
+  'beforeUpdate',
+  'updated',
+  'beforeRestore',
+  'restored',
+]);
+
+export const SkillVersionSummarySchema = z.object({
+  id: z.string(),
+  skillName: z.string(),
+  createdAt: z.string(),
+  action: SkillVersionActionSchema,
+  label: z.string(),
+  contentHash: z.string(),
+});
+
+export const SkillVersionDetailSchema = SkillVersionSummarySchema.extend({
+  content: z.string(),
+});
+
+export const SkillUpdateResultSchema = z.object({
+  version: SkillVersionSummarySchema,
+});
+
+export const SkillHistoryErrorSchema = z.object({
+  code: z.enum([
+    'invalidPath',
+    'notTracked',
+    'snapshotFailed',
+    'updateFailed',
+    'validationFailed',
+    'versionNotFound',
+    'restoreFailed',
+  ]),
+  message: z.string(),
 });
 
 export type SkillRoot = z.infer<typeof SkillRootSchema>;
@@ -170,4 +208,8 @@ export type SkillUsageEvent = z.infer<typeof SkillUsageEventSchema>;
 export type SkillUsageSeries = z.infer<typeof SkillUsageSeriesSchema>;
 export type SkillUpdateState = z.infer<typeof SkillUpdateStateSchema>;
 export type SkillUpdateStatus = z.infer<typeof SkillUpdateStatusSchema>;
+export type SkillVersionAction = z.infer<typeof SkillVersionActionSchema>;
+export type SkillVersionSummary = z.infer<typeof SkillVersionSummarySchema>;
+export type SkillVersionDetail = z.infer<typeof SkillVersionDetailSchema>;
+export type SkillHistoryError = z.infer<typeof SkillHistoryErrorSchema>;
 export type SkillManagementView = 'review' | 'updates' | 'archived';

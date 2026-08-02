@@ -4,17 +4,110 @@ import {
   type BucketType,
   SkillArchiveErrorSchema,
   SkillDeletionErrorSchema,
+  SkillHistoryErrorSchema,
   SkillListingErrorSchema,
   SkillRootImportErrorSchema,
   SkillRootSchema,
   SkillSchema,
+  SkillUpdateResultSchema,
   SkillUpdateStatusSchema,
   SkillUsageErrorSchema,
   SkillUsageEventSchema,
   SkillUsageSchema,
   SkillUsageSeriesSchema,
+  SkillVersionDetailSchema,
+  SkillVersionSummarySchema,
   type WindowType,
 } from './types';
+
+export class ManageSkillVersionError extends Data.TaggedError(
+  'ManageSkillVersionError',
+)<{
+  kind: 'InvokeError' | 'SkillHistoryError' | 'ZodParseError';
+  cause: unknown;
+}> {}
+
+const mapSkillHistoryError = (error: unknown) => {
+  const parsed = SkillHistoryErrorSchema.safeParse(error);
+  return new ManageSkillVersionError({
+    kind: parsed.success ? 'SkillHistoryError' : 'InvokeError',
+    cause: parsed.success ? parsed.data : error,
+  });
+};
+
+export const updateSkill = Effect.fn('updateSkill')(function* (name: string) {
+  const result = yield* Effect.tryPromise({
+    try: () => invoke<unknown>('update_skill', { name }),
+    catch: mapSkillHistoryError,
+  });
+
+  return yield* Effect.try({
+    try: () => SkillUpdateResultSchema.parse(result),
+    catch: error =>
+      new ManageSkillVersionError({ kind: 'ZodParseError', cause: error }),
+  });
+});
+
+export const listSkillVersions = Effect.fn('listSkillVersions')(function* (
+  skill: Pick<import('./types').Skill, 'rootPath' | 'relativePath'>,
+) {
+  const result = yield* Effect.tryPromise({
+    try: () =>
+      invoke<unknown>('list_skill_versions', {
+        rootPath: skill.rootPath,
+        relativePath: skill.relativePath,
+      }),
+    catch: mapSkillHistoryError,
+  });
+
+  return yield* Effect.try({
+    try: () => SkillVersionSummarySchema.array().parse(result),
+    catch: error =>
+      new ManageSkillVersionError({ kind: 'ZodParseError', cause: error }),
+  });
+});
+
+export const readSkillVersion = Effect.fn('readSkillVersion')(function* (
+  skill: Pick<import('./types').Skill, 'rootPath' | 'relativePath'>,
+  versionId: string,
+) {
+  const result = yield* Effect.tryPromise({
+    try: () =>
+      invoke<unknown>('read_skill_version', {
+        rootPath: skill.rootPath,
+        relativePath: skill.relativePath,
+        versionId,
+      }),
+    catch: mapSkillHistoryError,
+  });
+
+  return yield* Effect.try({
+    try: () => SkillVersionDetailSchema.parse(result),
+    catch: error =>
+      new ManageSkillVersionError({ kind: 'ZodParseError', cause: error }),
+  });
+});
+
+export const restoreSkillVersion = Effect.fn('restoreSkillVersion')(function* (
+  skill: Pick<import('./types').Skill, 'rootPath' | 'relativePath'>,
+  versionId: string,
+) {
+  const result = yield* Effect.tryPromise({
+    try: () =>
+      invoke<unknown>('restore_skill_version', {
+        rootPath: skill.rootPath,
+        relativePath: skill.relativePath,
+        versionId,
+      }),
+    catch: mapSkillHistoryError,
+  });
+
+  return yield* Effect.try({
+    try: () => SkillVersionSummarySchema.parse(result),
+    catch: error =>
+      new ManageSkillVersionError({ kind: 'ZodParseError', cause: error }),
+  });
+});
 
 export class CheckSkillUpdatesError extends Data.TaggedError(
   'CheckSkillUpdatesError',

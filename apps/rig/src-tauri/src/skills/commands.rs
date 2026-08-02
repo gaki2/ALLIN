@@ -4,6 +4,11 @@ use std::path::{Component, Path};
 use super::archive::{
     archive_skill_at_path, list_archived_skills_from_root, restore_skill_at_path,
 };
+use super::history::{
+    list_skill_versions_at_path, read_skill_version_at_path, restore_skill_version_at_path,
+    update_global_skill, SkillHistoryError, SkillUpdateResult, SkillVersionDetail,
+    SkillVersionSummary,
+};
 use super::models::{
     BucketType, Skill, SkillArchiveError, SkillDeletionError, SkillDeletionErrorCode,
     SkillListingError, SkillRoot, SkillRootDefinition, SkillRootImportError, SkillRootKind,
@@ -26,6 +31,37 @@ const SKILL_USAGE_LOG_PATH: &str = "~/.rig/usage.jsonl";
 #[tauri::command]
 pub async fn check_skill_updates() -> Vec<SkillUpdateStatus> {
     check_global_skill_updates().await
+}
+
+#[tauri::command]
+pub async fn update_skill(name: String) -> Result<SkillUpdateResult, SkillHistoryError> {
+    update_global_skill(name).await
+}
+
+#[tauri::command]
+pub fn list_skill_versions(
+    root_path: String,
+    relative_path: String,
+) -> Result<Vec<SkillVersionSummary>, SkillHistoryError> {
+    list_skill_versions_at_path(&root_path, &relative_path)
+}
+
+#[tauri::command]
+pub fn read_skill_version(
+    root_path: String,
+    relative_path: String,
+    version_id: String,
+) -> Result<SkillVersionDetail, SkillHistoryError> {
+    read_skill_version_at_path(&root_path, &relative_path, &version_id)
+}
+
+#[tauri::command]
+pub fn restore_skill_version(
+    root_path: String,
+    relative_path: String,
+    version_id: String,
+) -> Result<SkillVersionSummary, SkillHistoryError> {
+    restore_skill_version_at_path(&root_path, &relative_path, &version_id)
 }
 
 pub const SKILL_ROOT_DEFINITIONS: &[SkillRootDefinition] = &[

@@ -18,6 +18,7 @@ import {
   Code2,
   FileText,
   FileWarning,
+  History,
   LoaderCircle,
   Power,
   PowerOff,
@@ -43,6 +44,9 @@ import type {
   SkillUsageEvent,
 } from '../types';
 import { getSkillIdentity } from '../useRemoveSkill';
+import { ShareSkillDialog } from './ShareSkillDialog';
+import { SkillHistoryPanel } from './SkillHistoryPanel';
+import { UpdateSkillDialog } from './UpdateSkillDialog';
 
 interface SkillContentViewerProps {
   skill: Skill | null;
@@ -108,7 +112,11 @@ export const SkillContentViewer = ({
     <SkillInspector
       key={getSkillIdentity(skill)}
       skill={skill}
-      updateStatus={skillUpdates.find(update => update.name === skill.name)}
+      updateStatus={skillUpdates.find(
+        update =>
+          normalizeFilePath(update.installPath) ===
+          normalizeFilePath(getSkillFilePath(skill)),
+      )}
       weekUsages={weekUsages}
       duplicateLocationCount={
         skills.filter(
@@ -227,6 +235,14 @@ const SkillInspector = ({
             >
               {description}
             </p>
+            {updateStatus?.state === 'updateAvailable' && !skill.isArchived ? (
+              <UpdateSkillDialog
+                skill={skill}
+                updateStatus={updateStatus}
+                onUpdated={() => setActiveTab('history')}
+              />
+            ) : null}
+            <ShareSkillDialog skill={skill} updateStatus={updateStatus} />
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <button
@@ -317,6 +333,13 @@ const SkillInspector = ({
                 isSelected={activeTab === 'activity'}
                 onSelect={setActiveTab}
               />
+              <InspectorTabButton
+                icon={<History size={14} />}
+                label='History'
+                value='history'
+                isSelected={activeTab === 'history'}
+                onSelect={setActiveTab}
+              />
             </div>
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
@@ -381,7 +404,9 @@ const SkillInspector = ({
                 ? 'Rendered instructions'
                 : activeTab === 'source'
                   ? 'Skill source'
-                  : 'Recent skill activity'
+                  : activeTab === 'activity'
+                    ? 'Recent skill activity'
+                    : 'Skill version history'
             }
           >
             {activeTab === 'rendered' ? (
@@ -392,12 +417,14 @@ const SkillInspector = ({
                   {skill.content || 'This skill has no readable content.'}
                 </code>
               </pre>
-            ) : (
+            ) : activeTab === 'activity' ? (
               <ActivityPanel
                 events={recentEvents}
                 error={eventsError}
                 isLoading={isEventsLoading}
               />
+            ) : (
+              <SkillHistoryPanel skill={skill} />
             )}
           </section>
         </main>
@@ -658,7 +685,7 @@ const OverviewList = ({
   </section>
 );
 
-type InspectorTab = 'rendered' | 'source' | 'activity';
+type InspectorTab = 'rendered' | 'source' | 'activity' | 'history';
 
 const InspectorTabButton = ({
   icon,
@@ -793,3 +820,6 @@ const formatRelativeTime = (value: string) => {
 
   return 'just now';
 };
+
+const normalizeFilePath = (value: string) =>
+  value.replaceAll('\\', '/').replace(/\/+$/, '');
