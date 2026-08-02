@@ -24,53 +24,89 @@ export const useSkillArchive = ({
     ]);
 
   const restoreMutation = useMutation({
-    mutationFn: (skill: Skill) => Effect.runPromise(restoreSkillApi(skill)),
-    onSuccess: (_, skill) => {
-      void refreshSkills();
-      onRestored?.(skill);
-      toast.success(`${skill.name} enabled`, {
-        description: 'The skill is discoverable by agents again.',
-      });
+    mutationFn: (skills: Skill[]) =>
+      Promise.all(
+        skills.map(skill => Effect.runPromise(restoreSkillApi(skill))),
+      ),
+    onSuccess: (_, skills) => {
+      skills.forEach(skill => onRestored?.(skill));
+      toast.success(
+        skills.length === 1
+          ? `${skills[0].name} enabled`
+          : `${skills.length} skills enabled`,
+        {
+          description:
+            skills.length === 1
+              ? 'The skill is discoverable by agents again.'
+              : 'The selected skills are discoverable by agents again.',
+        },
+      );
     },
-    onError: (error, skill) => showArchiveError('enable', skill, error),
+    onError: (error, skills) => showArchiveError('enable', skills, error),
+    onSettled: () => {
+      void refreshSkills();
+    },
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (skill: Skill) => Effect.runPromise(archiveSkillApi(skill)),
-    onSuccess: (_, skill) => {
-      void refreshSkills();
-      onArchived?.(skill);
-      toast.success(`${skill.name} disabled`, {
-        description: 'No longer discoverable by agents. Files remain on disk.',
-        action: {
-          label: 'Undo',
-          onClick: () => restoreMutation.mutate(skill),
+    mutationFn: (skills: Skill[]) =>
+      Promise.all(
+        skills.map(skill => Effect.runPromise(archiveSkillApi(skill))),
+      ),
+    onSuccess: (_, skills) => {
+      skills.forEach(skill => onArchived?.(skill));
+      toast.success(
+        skills.length === 1
+          ? `${skills[0].name} disabled`
+          : `${skills.length} skills disabled`,
+        {
+          description:
+            skills.length === 1
+              ? 'No longer discoverable by agents. Files remain on disk.'
+              : 'No longer discoverable by agents. All files remain on disk.',
+          action: {
+            label: 'Undo',
+            onClick: () => restoreMutation.mutate(skills),
+          },
         },
-      });
+      );
     },
-    onError: (error, skill) => showArchiveError('disable', skill, error),
+    onError: (error, skills) => showArchiveError('disable', skills, error),
+    onSettled: () => {
+      void refreshSkills();
+    },
   });
-  const changingSkill =
-    archiveMutation.variables ?? restoreMutation.variables ?? null;
+  const changingSkillIds = new Set(
+    (archiveMutation.variables ?? restoreMutation.variables ?? []).map(
+      getSkillIdentity,
+    ),
+  );
 
   return {
-    archiveSkill: archiveMutation.mutate,
-    restoreSkill: restoreMutation.mutate,
-    changingSkillId: changingSkill ? getSkillIdentity(changingSkill) : null,
+    archiveSkill: (skill: Skill) => archiveMutation.mutate([skill]),
+    archiveSkills: archiveMutation.mutate,
+    restoreSkill: (skill: Skill) => restoreMutation.mutate([skill]),
+    restoreSkills: restoreMutation.mutate,
+    changingSkillIds,
     isChanging: archiveMutation.isPending || restoreMutation.isPending,
   };
 };
 
 const showArchiveError = (
   action: 'disable' | 'enable',
-  skill: Skill,
+  skills: Skill[],
   error: unknown,
 ) => {
   const archiveError = getSkillArchiveError(error);
 
-  toast.error(`Failed to ${action} ${skill.name}`, {
-    description: archiveError?.message ?? getErrorMessage(error),
-  });
+  toast.error(
+    skills.length === 1
+      ? `Failed to ${action} ${skills[0].name}`
+      : `Failed to ${action} all ${skills.length} skills`,
+    {
+      description: archiveError?.message ?? getErrorMessage(error),
+    },
+  );
 };
 
 const getSkillArchiveError = (error: unknown) => {

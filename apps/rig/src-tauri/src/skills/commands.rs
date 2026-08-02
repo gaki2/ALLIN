@@ -29,8 +29,8 @@ use crate::skills::models::SkillListingErrorCode;
 const SKILL_USAGE_LOG_PATH: &str = "~/.rig/usage.jsonl";
 
 #[tauri::command]
-pub async fn check_skill_updates() -> Vec<SkillUpdateStatus> {
-    check_global_skill_updates().await
+pub async fn check_skill_updates(force: Option<bool>) -> Vec<SkillUpdateStatus> {
+    check_global_skill_updates(force.unwrap_or(false)).await
 }
 
 #[tauri::command]

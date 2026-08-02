@@ -81,13 +81,15 @@ struct SourceCheck {
     folder_hashes: HashMap<String, String>,
 }
 
-pub async fn check_global_skill_updates() -> Vec<SkillUpdateStatus> {
+pub async fn check_global_skill_updates(force: bool) -> Vec<SkillUpdateStatus> {
     let cache = UPDATE_CACHE.get_or_init(|| tokio::sync::Mutex::new(None));
     let mut cached_check = cache.lock().await;
 
-    if let Some(cached_check) = cached_check.as_ref() {
-        if cached_check.created_at.elapsed() < UPDATE_CACHE_TTL {
-            return cached_check.statuses.clone();
+    if !force {
+        if let Some(cached_check) = cached_check.as_ref() {
+            if cached_check.created_at.elapsed() < UPDATE_CACHE_TTL {
+                return cached_check.statuses.clone();
+            }
         }
     }
 

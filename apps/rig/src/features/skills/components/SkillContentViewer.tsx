@@ -95,6 +95,10 @@ export const SkillContentViewer = ({
           }
           isCheckingUpdates={isCheckingUpdates}
           onCheckUpdates={onCheckUpdates}
+          isUpdateCheckUnavailable={
+            managementView === 'updates' &&
+            skillUpdates.some(update => update.state === 'checkUnavailable')
+          }
         />
       );
     }
@@ -437,11 +441,13 @@ const ManagementOverview = ({
   mode,
   hasItems,
   isCheckingUpdates,
+  isUpdateCheckUnavailable,
   onCheckUpdates,
 }: {
   mode: SkillManagementView;
   hasItems: boolean;
   isCheckingUpdates: boolean;
+  isUpdateCheckUnavailable: boolean;
   onCheckUpdates: () => void;
 }) => {
   const isDisabled = mode === 'archived';
@@ -469,7 +475,9 @@ const ManagementOverview = ({
             : isDisabled
               ? 'No disabled skills.'
               : isUpdates
-                ? 'Tracked skills are current.'
+                ? isUpdateCheckUnavailable
+                  ? 'Update check unavailable.'
+                  : 'Tracked skills are current.'
                 : 'Nothing needs review.'}
         </h2>
         <p className='mt-2 text-sm leading-6 text-muted-foreground'>
@@ -482,7 +490,9 @@ const ManagementOverview = ({
             : isDisabled
               ? 'Skills disabled from this scope will stay available here so you can enable them again.'
               : isUpdates
-                ? 'Rig compared each installed folder hash with its tracked GitHub source.'
+                ? isUpdateCheckUnavailable
+                  ? 'Rig could not verify the tracked GitHub sources. Anonymous API rate limits are a common cause; retry later without changing any local files.'
+                  : 'Rig compared each installed folder hash with its tracked GitHub source.'
                 : 'No invalid, duplicate, or unusually large instructions were found in this scope.'}
         </p>
         {isUpdates && !hasItems ? (

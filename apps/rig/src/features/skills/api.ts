@@ -116,9 +116,11 @@ export class CheckSkillUpdatesError extends Data.TaggedError(
   cause: unknown;
 }> {}
 
-export const checkSkillUpdates = Effect.fn('checkSkillUpdates')(function* () {
+export const checkSkillUpdates = Effect.fn('checkSkillUpdates')(function* (
+  force = false,
+) {
   const result = yield* Effect.tryPromise({
-    try: () => invoke<unknown>('check_skill_updates'),
+    try: () => invoke<unknown>('check_skill_updates', { force }),
     catch: error =>
       new CheckSkillUpdatesError({ kind: 'InvokeError', cause: error }),
   });

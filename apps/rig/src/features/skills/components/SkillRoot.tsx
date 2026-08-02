@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Effect } from 'effect';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ContentLayout } from '@/layouts/ContentLayout';
 import { SidebarLayout } from '@/layouts/SidebarLayout';
 import {
@@ -25,8 +25,10 @@ interface SkillRootProps {
 
 export const SkillRoot = ({ roots }: SkillRootProps) => {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
   const [managementView, setManagementView] =
     useState<SkillManagementView | null>(null);
+  const queryClient = useQueryClient();
   const { skills, isLoading, error } = useFetchSkills(roots);
   const {
     archivedSkills,
@@ -44,38 +46,73 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
   const {
     data: skillUpdates = [],
     error: skillUpdatesError,
-    isFetching: isCheckingUpdates,
-    refetch: refetchSkillUpdates,
+    isFetching: isFetchingUpdates,
   } = useQuery({
     queryKey: ['skill-updates'],
     queryFn: () => Effect.runPromise(checkSkillUpdates()),
     staleTime: 15 * 60 * 1_000,
     refetchOnWindowFocus: false,
   });
-  const allSkills = [...skills, ...archivedSkills];
+  const forceUpdateCheck = useMutation({
+    mutationFn: () => Effect.runPromise(checkSkillUpdates(true)),
+    onSuccess: statuses => {
+      queryClient.setQueryData(['skill-updates'], statuses);
+    },
+  });
+  const allSkills = useMemo(
+    () => [...skills, ...archivedSkills],
+    [archivedSkills, skills],
+  );
+  const selectedSkillIdSet = useMemo(
+    () => new Set(selectedSkillIds),
+    [selectedSkillIds],
+  );
   const selectedSkill = selectedSkillId
     ? (allSkills.find(skill => getSkillIdentity(skill) === selectedSkillId) ??
       null)
     : null;
-  const { removeSkill, removingSkillId } = useRemoveSkill({
+  const clearChangedSkill = (changedSkill: (typeof allSkills)[number]) => {
+    const changedId = getSkillIdentity(changedSkill);
+    setSelectedSkillIds(currentIds =>
+      currentIds.filter(currentId => currentId !== changedId),
+    );
+    setSelectedSkillId(currentId =>
+      currentId === changedId ? null : currentId,
+    );
+  };
+  const { removeSkills, removingSkillIds } = useRemoveSkill({
     onRemoved: removedSkill => {
-      setSelectedSkillId(currentId =>
-        currentId === getSkillIdentity(removedSkill) ? null : currentId,
-      );
+      clearChangedSkill(removedSkill);
     },
   });
-  const { archiveSkill, restoreSkill, changingSkillId } = useSkillArchive({
+  const {
+    archiveSkill,
+    archiveSkills,
+    restoreSkill,
+    restoreSkills,
+    changingSkillIds,
+  } = useSkillArchive({
     onArchived: changedSkill => {
-      setSelectedSkillId(currentId =>
-        currentId === getSkillIdentity(changedSkill) ? null : currentId,
-      );
+      clearChangedSkill(changedSkill);
     },
     onRestored: changedSkill => {
-      setSelectedSkillId(currentId =>
-        currentId === getSkillIdentity(changedSkill) ? null : currentId,
-      );
+      clearChangedSkill(changedSkill);
     },
   });
+  const isCheckingUpdates = isFetchingUpdates || forceUpdateCheck.isPending;
+  const updatesError = skillUpdatesError ?? forceUpdateCheck.error;
+  const checkUpdatesNow = () => forceUpdateCheck.mutate();
+
+  const clearSelection = () => {
+    setSelectedSkillId(null);
+    setSelectedSkillIds([]);
+  };
+
+  const selectOneSkill = (skill: (typeof allSkills)[number]) => {
+    const identity = getSkillIdentity(skill);
+    setSelectedSkillId(identity);
+    setSelectedSkillIds([identity]);
+  };
 
   return (
     <div className='flex min-h-0 flex-1'>
@@ -84,25 +121,31 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
           skills={skills}
           archivedSkills={archivedSkills}
           selectedSkill={selectedSkill}
+          selectedSkillIds={selectedSkillIdSet}
           skillUsages={skillUsages}
           skillUsageTendencies={skillUsageTendencies}
           skillUpdates={skillUpdates}
-          skillUpdatesError={skillUpdatesError}
+          skillUpdatesError={updatesError}
           isCheckingUpdates={isCheckingUpdates}
-          onCheckUpdates={() => void refetchSkillUpdates()}
+          onCheckUpdates={checkUpdatesNow}
           isLoading={isLoading || isLoadingArchivedSkills}
           error={
             error || archivedSkillsError
               ? String(error ?? archivedSkillsError)
               : null
           }
-          onSelectSkill={skill => setSelectedSkillId(getSkillIdentity(skill))}
-          onClearSelection={() => setSelectedSkillId(null)}
-          onRemoveSkill={removeSkill}
-          removingSkillId={removingSkillId}
-          onArchiveSkill={archiveSkill}
-          onRestoreSkill={restoreSkill}
-          changingSkillId={changingSkillId}
+          onSelectionChange={(selectedSkills, focusedSkill) => {
+            setSelectedSkillIds(selectedSkills.map(getSkillIdentity));
+            setSelectedSkillId(
+              focusedSkill ? getSkillIdentity(focusedSkill) : null,
+            );
+          }}
+          onClearSelection={clearSelection}
+          onRemoveSkills={removeSkills}
+          removingSkillIds={removingSkillIds}
+          onArchiveSkills={archiveSkills}
+          onRestoreSkills={restoreSkills}
+          changingSkillIds={changingSkillIds}
           managementView={managementView}
           onManagementViewChange={setManagementView}
         />
@@ -115,14 +158,14 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
           weekUsages={skillUsages}
           skillUpdates={skillUpdates}
           isCheckingUpdates={isCheckingUpdates}
-          onCheckUpdates={() => void refetchSkillUpdates()}
-          onSelectSkill={skill => setSelectedSkillId(getSkillIdentity(skill))}
-          onBack={() => setSelectedSkillId(null)}
+          onCheckUpdates={checkUpdatesNow}
+          onSelectSkill={selectOneSkill}
+          onBack={clearSelection}
           onArchiveSkill={archiveSkill}
           onRestoreSkill={restoreSkill}
           isChangingArchiveState={
             selectedSkill
-              ? changingSkillId === getSkillIdentity(selectedSkill)
+              ? changingSkillIds.has(getSkillIdentity(selectedSkill))
               : false
           }
           managementView={managementView}
