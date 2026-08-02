@@ -47,6 +47,7 @@ import {
   matchesSkillSearch,
 } from '../insights';
 import { getNextSkillSelection } from '../selection';
+import { getSkillSourceId } from '../skillSources';
 import type {
   Skill,
   SkillManagementView,
@@ -56,6 +57,7 @@ import type {
 } from '../types';
 import { getSkillIdentity } from '../useRemoveSkill';
 import { ShareSkillsDialog } from './ShareSkillDialog';
+import { SkillProviderIcon } from './SkillProviderIcon';
 import { SkillUsageSparkline } from './SkillUsageSparkline';
 
 const loadingSkeletonIds = Array.from(
@@ -610,17 +612,27 @@ export const SkillList = ({
                             Disabled · kept on disk
                           </span>
                         ) : null}
-                        <span>
+                        <span className='inline-flex shrink-0 items-center gap-1'>
+                          <SkillProviderIcon
+                            sourceId={getSkillSourceId(skill)}
+                            size={12}
+                          />
+                          {getSkillSourceLabel(skill)}
+                        </span>
+                        <span aria-hidden='true'>·</span>
+                        <span className='shrink-0'>
                           {formatTokenEstimate(
                             estimateSkillTokens(skill.content),
                           )}
                         </span>
-                        <span aria-hidden='true'>·</span>
-                        <span className='truncate'>
-                          {managementView === 'updates' && updateStatus
-                            ? updateStatus.source
-                            : getSkillSourceLabel(skill)}
-                        </span>
+                        {managementView === 'updates' && updateStatus ? (
+                          <>
+                            <span aria-hidden='true'>·</span>
+                            <span className='truncate'>
+                              {updateStatus.source}
+                            </span>
+                          </>
+                        ) : null}
                       </span>
                     </span>
 

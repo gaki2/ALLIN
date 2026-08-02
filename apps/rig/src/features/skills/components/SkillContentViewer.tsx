@@ -36,6 +36,7 @@ import {
   getSkillFilePath,
   getSkillSourceLabel,
 } from '../insights';
+import { getSkillSourceId } from '../skillSources';
 import type {
   Skill,
   SkillManagementView,
@@ -46,6 +47,7 @@ import type {
 import { getSkillIdentity } from '../useRemoveSkill';
 import { ShareSkillDialog } from './ShareSkillDialog';
 import { SkillHistoryPanel } from './SkillHistoryPanel';
+import { SkillProviderIcon } from './SkillProviderIcon';
 import { UpdateSkillDialog } from './UpdateSkillDialog';
 
 interface SkillContentViewerProps {
@@ -375,7 +377,13 @@ const SkillInspector = ({
               className='ml-auto hidden shrink-0 truncate text-right text-xs text-muted-foreground lg:block'
               title={`~${formatCompactNumber(estimateSkillTokens(skill.content))} estimated tokens${skill.updatedAt ? ` · Updated ${formatRelativeTime(skill.updatedAt)}` : ''}`}
             >
-              {updateStatus?.source ?? getSkillSourceLabel(skill)}
+              <span className='inline-flex items-center gap-1'>
+                <SkillProviderIcon
+                  sourceId={getSkillSourceId(skill)}
+                  size={13}
+                />
+                {getSkillSourceLabel(skill)}
+              </span>
               <span aria-hidden='true'> · </span>~
               {formatCompactNumber(estimateSkillTokens(skill.content))} tokens
               <span aria-hidden='true'> · </span>
@@ -683,8 +691,14 @@ const OverviewList = ({
               <span className='block truncate text-sm font-medium'>
                 {skill.name}
               </span>
-              <span className='mt-0.5 block truncate text-xs text-muted-foreground'>
-                {getSkillSourceLabel(skill)} · {skill.relativePath}
+              <span className='mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground'>
+                <SkillProviderIcon
+                  sourceId={getSkillSourceId(skill)}
+                  size={12}
+                />
+                <span className='shrink-0'>{getSkillSourceLabel(skill)}</span>
+                <span aria-hidden='true'>·</span>
+                <span className='truncate'>{skill.relativePath}</span>
               </span>
             </span>
             <span className='text-xs text-muted-foreground'>Open</span>

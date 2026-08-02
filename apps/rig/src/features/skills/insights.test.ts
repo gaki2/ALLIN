@@ -69,7 +69,7 @@ describe('skill library insights', () => {
       getSkillSourceLabel(
         makeSkill({ rootPath: '/Users/test/.claude/skills' }),
       ),
-    ).toBe('Claude');
+    ).toBe('Claude Code');
     expect(
       getSkillSourceLabel(
         makeSkill({ rootPath: '/Users/test/.config/opencode/skills' }),
@@ -82,7 +82,7 @@ describe('skill library insights', () => {
           relativePath: '.claude/skills/accessibility',
         }),
       ),
-    ).toBe('Claude');
+    ).toBe('Claude Code');
   });
 
   it('builds the absolute SKILL.md path for each platform', () => {

@@ -10,15 +10,14 @@ import {
   toast,
 } from '@allin/ui';
 import {
-  Bot,
   Check,
   Clipboard,
-  Folder,
   FolderSearch,
   PlugZap,
   Settings2,
 } from 'lucide-react';
 import { useState } from 'react';
+import { SkillProviderIcon } from '@/features/skills/components/SkillProviderIcon';
 import {
   SKILL_SOURCES,
   type SkillSourceId,
@@ -40,6 +39,7 @@ type SettingsSection = 'agents' | 'sources';
 const agents: Array<{
   id: AgentId;
   name: string;
+  sourceId: SkillSourceId;
   description: string;
   buttonLabel: string;
   prompt: string;
@@ -47,6 +47,7 @@ const agents: Array<{
   {
     id: 'claude-code',
     name: 'Claude Code',
+    sourceId: 'claude',
     description:
       'Adds the Rig marketplace and installs its Claude Code plugin. Rig can then show Claude Code skill usage in Activity.',
     buttonLabel: 'Copy Claude Code setup',
@@ -61,6 +62,7 @@ Preserve my existing Claude Code settings. If anything fails, explain the exact 
   {
     id: 'codex',
     name: 'Codex',
+    sourceId: 'agents',
     description:
       'Uses the shared .agents skill folders so Codex and Rig discover the same skills. This does not enable usage tracking.',
     buttonLabel: 'Copy Codex setup',
@@ -76,6 +78,7 @@ Do not use ~/.codex/skills; that is not the documented Codex skills location.`,
   {
     id: 'opencode',
     name: 'OpenCode',
+    sourceId: 'opencode',
     description:
       'Adds rig-opencode to your existing configuration. Rig can then show OpenCode skill usage in Activity.',
     buttonLabel: 'Copy OpenCode setup',
@@ -267,7 +270,11 @@ const AgentSetup = ({
             className='flex items-center gap-4 rounded-2xl border bg-background p-4 shadow-xs max-sm:flex-col max-sm:items-stretch'
           >
             <span className='flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted'>
-              <Bot size={18} />
+              <SkillProviderIcon
+                sourceId={agent.sourceId}
+                size={21}
+                tone='brand'
+              />
             </span>
             <div className='min-w-0 flex-1'>
               <h3 className='text-sm font-semibold'>{agent.name}</h3>
@@ -330,8 +337,17 @@ const SkillSourceSettings = ({
                 key={source.id}
                 className='flex items-center gap-4 px-4 py-3.5'
               >
-                <span className='flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted'>
-                  <Folder size={16} />
+                <span
+                  className={cn(
+                    'flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted transition-opacity duration-100',
+                    !isVisible && 'opacity-60',
+                  )}
+                >
+                  <SkillProviderIcon
+                    sourceId={source.id}
+                    size={18}
+                    tone='brand'
+                  />
                 </span>
                 <div className='min-w-0 flex-1'>
                   <label

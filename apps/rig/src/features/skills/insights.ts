@@ -1,5 +1,5 @@
-import type { Skill } from './types';
 import { getSkillSourceId } from './skillSources';
+import type { Skill } from './types';
 
 export const LARGE_SKILL_CHARACTER_THRESHOLD = 16_000;
 
@@ -12,7 +12,7 @@ export const getSkillSourceLabel = (
   const sourceId = getSkillSourceId(skill);
 
   if (sourceId === 'agents') return 'Codex';
-  if (sourceId === 'claude') return 'Claude';
+  if (sourceId === 'claude') return 'Claude Code';
   if (sourceId === 'opencode') return 'OpenCode';
 
   const normalizedPath = skill.rootPath.replaceAll('\\', '/');
