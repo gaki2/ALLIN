@@ -13,7 +13,8 @@ import {
   Bot,
   Check,
   Clipboard,
-  Library,
+  Folder,
+  FolderSearch,
   PlugZap,
   Settings2,
 } from 'lucide-react';
@@ -34,7 +35,7 @@ interface SettingsDialogProps {
 }
 
 type AgentId = 'claude-code' | 'codex' | 'opencode';
-type SettingsSection = 'agents' | 'library';
+type SettingsSection = 'agents' | 'sources';
 
 const agents: Array<{
   id: AgentId;
@@ -112,11 +113,11 @@ const SettingsNavigation = ({
       onClick={() => onSectionChange('agents')}
     />
     <SettingsNavigationButton
-      icon={<Library size={14} />}
-      label='Library'
-      isSelected={section === 'library'}
+      icon={<FolderSearch size={14} />}
+      label='Skill sources'
+      isSelected={section === 'sources'}
       isMobile={isMobile}
-      onClick={() => onSectionChange('library')}
+      onClick={() => onSectionChange('sources')}
     />
   </nav>
 );
@@ -190,7 +191,7 @@ export const SettingsDialog = ({
   ) => {
     if (onSkillSourceVisibilityChange(sourceId, isVisible)) return;
 
-    toast.error('Couldn’t update Library visibility.', {
+    toast.error('Couldn’t update skill sources.', {
       description: 'Your previous setting is still in use.',
     });
   };
@@ -223,7 +224,7 @@ export const SettingsDialog = ({
                 onCopySetupPrompt={copySetupPrompt}
               />
             ) : (
-              <LibraryVisibility
+              <SkillSourceSettings
                 hiddenSkillSourceIds={hiddenSkillSourceIds}
                 onSourceVisibilityChange={updateSourceVisibility}
               />
@@ -290,7 +291,7 @@ const AgentSetup = ({
   </div>
 );
 
-const LibraryVisibility = ({
+const SkillSourceSettings = ({
   hiddenSkillSourceIds,
   onSourceVisibilityChange,
 }: {
@@ -303,20 +304,20 @@ const LibraryVisibility = ({
   <div className='flex min-h-0 flex-1 flex-col'>
     <DialogHeader className='border-b px-6 py-5 text-left'>
       <DialogTitle className='text-lg font-semibold tracking-[-0.02em]'>
-        Library
+        Skill sources
       </DialogTitle>
       <DialogDescription className='mt-1 max-w-xl leading-5'>
-        Choose which skill sources appear in Rig.
+        Choose which provider folders Rig scans and shows.
       </DialogDescription>
     </DialogHeader>
 
     <div className='min-h-0 flex-1 overflow-y-auto p-6'>
       <section className='overflow-hidden rounded-2xl border bg-background shadow-xs'>
         <div className='border-b px-4 py-3.5'>
-          <h3 className='text-sm font-semibold'>Skill visibility</h3>
+          <h3 className='text-sm font-semibold'>Provider folders</h3>
           <p className='mt-1 text-xs leading-5 text-muted-foreground'>
-            Turn off a source to hide its skills from the Library. Files stay on
-            disk and remain available to the agent.
+            Turn off a source to hide its skills from Rig. Files stay on disk
+            and remain available to the agent.
           </p>
         </div>
 
@@ -330,7 +331,7 @@ const LibraryVisibility = ({
                 className='flex items-center gap-4 px-4 py-3.5'
               >
                 <span className='flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted'>
-                  <Library size={16} />
+                  <Folder size={16} />
                 </span>
                 <div className='min-w-0 flex-1'>
                   <label
@@ -344,12 +345,12 @@ const LibraryVisibility = ({
                   </p>
                 </div>
                 <span className='text-right text-xs text-muted-foreground max-sm:hidden'>
-                  {isVisible ? 'Shown in Library' : 'Hidden from Library'}
+                  {isVisible ? 'Shown in Rig' : 'Hidden from Rig'}
                 </span>
                 <Switch
                   id={`skill-source-${source.id}`}
                   checked={isVisible}
-                  aria-label={`Show ${source.name} skills in the Library`}
+                  aria-label={`Show ${source.name} skills in Rig`}
                   onCheckedChange={checked =>
                     onSourceVisibilityChange(source.id, checked)
                   }
