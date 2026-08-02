@@ -358,13 +358,13 @@ export const SkillList = ({
             <h1 className='text-lg font-semibold tracking-[-0.02em]'>
               Library
             </h1>
-            <div className='mt-0.5 flex min-w-0 items-center justify-between gap-2'>
-              <p className='truncate text-xs text-muted-foreground'>
+            <div className='mt-0.5 flex min-w-0 items-baseline gap-3'>
+              <p className='min-w-0 flex-1 truncate text-xs leading-4 text-muted-foreground'>
                 {skills.length} discoverable skills
               </p>
               <nav
                 aria-label='Library status'
-                className='flex shrink-0 items-center gap-0.5'
+                className='-mr-1 ml-auto flex min-w-0 max-w-[68%] items-baseline gap-0 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
               >
                 <ManagementShortcut
                   label='Review'
@@ -375,7 +375,10 @@ export const SkillList = ({
                     onClearSelection();
                   }}
                 />
-                <span aria-hidden='true' className='text-muted-foreground/40'>
+                <span
+                  aria-hidden='true'
+                  className='shrink-0 px-0.5 text-[11px] leading-4 text-muted-foreground/40'
+                >
                   ·
                 </span>
                 <ManagementShortcut
@@ -399,7 +402,10 @@ export const SkillList = ({
                     onClearSelection();
                   }}
                 />
-                <span aria-hidden='true' className='text-muted-foreground/40'>
+                <span
+                  aria-hidden='true'
+                  className='shrink-0 px-0.5 text-[11px] leading-4 text-muted-foreground/40'
+                >
                   ·
                 </span>
                 <ManagementShortcut
@@ -807,7 +813,7 @@ const ManagementShortcut = ({
         type='button'
         onClick={onClick}
         aria-label={`${label}: ${count}`}
-        className='rig-pressable inline-flex h-6 items-baseline gap-1 rounded-md px-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+        className='rig-pressable inline-flex min-h-6 shrink-0 items-baseline gap-1 rounded-md px-1 py-1 text-[11px] leading-4 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
       >
         <span>{label}</span>
         <span className='font-medium tabular-nums text-foreground/75'>
