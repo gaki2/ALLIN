@@ -13,6 +13,7 @@ use super::root_store::{
     import_skill_root_from_path, list_imported_skill_roots, remove_imported_skill_root,
 };
 use super::scanner::list_skills_from_root;
+use super::updates::{check_global_skill_updates, SkillUpdateStatus};
 use super::usage::{
     list_skill_usage_events_from_log, list_skill_usage_tendencies_from_log,
     list_skill_usages_from_log,
@@ -21,6 +22,11 @@ use crate::skills::fs::expand_path;
 use crate::skills::models::SkillListingErrorCode;
 
 const SKILL_USAGE_LOG_PATH: &str = "~/.rig/usage.jsonl";
+
+#[tauri::command]
+pub async fn check_skill_updates() -> Vec<SkillUpdateStatus> {
+    check_global_skill_updates().await
+}
 
 pub const SKILL_ROOT_DEFINITIONS: &[SkillRootDefinition] = &[
     SkillRootDefinition {

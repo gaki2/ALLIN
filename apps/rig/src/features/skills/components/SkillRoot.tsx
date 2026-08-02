@@ -3,8 +3,15 @@ import { Effect } from 'effect';
 import { useState } from 'react';
 import { ContentLayout } from '@/layouts/ContentLayout';
 import { SidebarLayout } from '@/layouts/SidebarLayout';
-import { listSkillUsages, listSkillUsagesTendency } from '../api';
-import type { SkillRoot as SkillRootModel } from '../types';
+import {
+  checkSkillUpdates,
+  listSkillUsages,
+  listSkillUsagesTendency,
+} from '../api';
+import type {
+  SkillManagementView,
+  SkillRoot as SkillRootModel,
+} from '../types';
 import { useFetchArchivedSkills } from '../useFetchArchivedSkills';
 import { useFetchSkills } from '../useFetchSkills';
 import { getSkillIdentity, useRemoveSkill } from '../useRemoveSkill';
@@ -18,9 +25,8 @@ interface SkillRootProps {
 
 export const SkillRoot = ({ roots }: SkillRootProps) => {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
-  const [managementView, setManagementView] = useState<
-    'review' | 'archived' | null
-  >(null);
+  const [managementView, setManagementView] =
+    useState<SkillManagementView | null>(null);
   const { skills, isLoading, error } = useFetchSkills(roots);
   const {
     archivedSkills,
@@ -34,6 +40,17 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
   const { data: skillUsageTendencies = [] } = useQuery({
     queryKey: ['skill-usages-tendency', 'week', 'day'],
     queryFn: () => Effect.runPromise(listSkillUsagesTendency('week', 'day')),
+  });
+  const {
+    data: skillUpdates = [],
+    error: skillUpdatesError,
+    isFetching: isCheckingUpdates,
+    refetch: refetchSkillUpdates,
+  } = useQuery({
+    queryKey: ['skill-updates'],
+    queryFn: () => Effect.runPromise(checkSkillUpdates()),
+    staleTime: 15 * 60 * 1_000,
+    refetchOnWindowFocus: false,
   });
   const allSkills = [...skills, ...archivedSkills];
   const selectedSkill = selectedSkillId
@@ -69,6 +86,10 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
           selectedSkill={selectedSkill}
           skillUsages={skillUsages}
           skillUsageTendencies={skillUsageTendencies}
+          skillUpdates={skillUpdates}
+          skillUpdatesError={skillUpdatesError}
+          isCheckingUpdates={isCheckingUpdates}
+          onCheckUpdates={() => void refetchSkillUpdates()}
           isLoading={isLoading || isLoadingArchivedSkills}
           error={
             error || archivedSkillsError
@@ -92,6 +113,9 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
           skill={selectedSkill}
           skills={allSkills}
           weekUsages={skillUsages}
+          skillUpdates={skillUpdates}
+          isCheckingUpdates={isCheckingUpdates}
+          onCheckUpdates={() => void refetchSkillUpdates()}
           onSelectSkill={skill => setSelectedSkillId(getSkillIdentity(skill))}
           onBack={() => setSelectedSkillId(null)}
           onArchiveSkill={archiveSkill}

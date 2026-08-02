@@ -8,12 +8,34 @@ import {
   SkillRootImportErrorSchema,
   SkillRootSchema,
   SkillSchema,
+  SkillUpdateStatusSchema,
   SkillUsageErrorSchema,
   SkillUsageEventSchema,
   SkillUsageSchema,
   SkillUsageSeriesSchema,
   type WindowType,
 } from './types';
+
+export class CheckSkillUpdatesError extends Data.TaggedError(
+  'CheckSkillUpdatesError',
+)<{
+  kind: 'InvokeError' | 'ZodParseError';
+  cause: unknown;
+}> {}
+
+export const checkSkillUpdates = Effect.fn('checkSkillUpdates')(function* () {
+  const result = yield* Effect.tryPromise({
+    try: () => invoke<unknown>('check_skill_updates'),
+    catch: error =>
+      new CheckSkillUpdatesError({ kind: 'InvokeError', cause: error }),
+  });
+
+  return yield* Effect.try({
+    try: () => SkillUpdateStatusSchema.array().parse(result),
+    catch: error =>
+      new CheckSkillUpdatesError({ kind: 'ZodParseError', cause: error }),
+  });
+});
 
 export class ListSkillRootsError extends Data.TaggedError(
   'ListSkillRootsError',

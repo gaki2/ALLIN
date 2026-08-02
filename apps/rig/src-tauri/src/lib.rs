@@ -99,6 +99,7 @@ pub fn run() {
             plugins::commands::list_plugin_targets,
             skills::commands::import_skill_root,
             skills::commands::archive_skill,
+            skills::commands::check_skill_updates,
             skills::commands::list_archived_skills,
             skills::commands::list_skill_roots,
             skills::commands::list_skills,

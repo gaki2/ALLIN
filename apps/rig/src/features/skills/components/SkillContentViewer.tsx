@@ -21,6 +21,7 @@ import {
   LoaderCircle,
   Power,
   PowerOff,
+  RefreshCw,
 } from 'lucide-react';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -34,25 +35,37 @@ import {
   getSkillFilePath,
   getSkillSourceLabel,
 } from '../insights';
-import type { Skill, SkillUsage, SkillUsageEvent } from '../types';
+import type {
+  Skill,
+  SkillManagementView,
+  SkillUpdateStatus,
+  SkillUsage,
+  SkillUsageEvent,
+} from '../types';
 import { getSkillIdentity } from '../useRemoveSkill';
 
 interface SkillContentViewerProps {
   skill: Skill | null;
   skills: Skill[];
   weekUsages: SkillUsage[];
+  skillUpdates: SkillUpdateStatus[];
+  isCheckingUpdates: boolean;
+  onCheckUpdates: () => void;
   onSelectSkill: (skill: Skill) => void;
   onBack: () => void;
   onArchiveSkill: (skill: Skill) => void;
   onRestoreSkill: (skill: Skill) => void;
   isChangingArchiveState: boolean;
-  managementView: 'review' | 'archived' | null;
+  managementView: SkillManagementView | null;
 }
 
 export const SkillContentViewer = ({
   skill,
   skills,
   weekUsages,
+  skillUpdates,
+  isCheckingUpdates,
+  onCheckUpdates,
   onSelectSkill,
   onBack,
   onArchiveSkill,
@@ -70,8 +83,14 @@ export const SkillContentViewer = ({
           hasItems={
             managementView === 'archived'
               ? skills.some(candidate => candidate.isArchived)
-              : getLibraryHealth(activeSkills).reviewCount > 0
+              : managementView === 'updates'
+                ? skillUpdates.some(
+                    update => update.state === 'updateAvailable',
+                  )
+                : getLibraryHealth(activeSkills).reviewCount > 0
           }
+          isCheckingUpdates={isCheckingUpdates}
+          onCheckUpdates={onCheckUpdates}
         />
       );
     }
@@ -89,6 +108,7 @@ export const SkillContentViewer = ({
     <SkillInspector
       key={getSkillIdentity(skill)}
       skill={skill}
+      updateStatus={skillUpdates.find(update => update.name === skill.name)}
       weekUsages={weekUsages}
       duplicateLocationCount={
         skills.filter(
@@ -107,6 +127,7 @@ export const SkillContentViewer = ({
 
 const SkillInspector = ({
   skill,
+  updateStatus,
   weekUsages,
   duplicateLocationCount,
   onBack,
@@ -115,6 +136,7 @@ const SkillInspector = ({
   isChangingArchiveState,
 }: {
   skill: Skill;
+  updateStatus?: SkillUpdateStatus;
   weekUsages: SkillUsage[];
   duplicateLocationCount: number;
   onBack: () => void;
@@ -195,6 +217,9 @@ const SkillInspector = ({
             ) : null}
             {duplicateLocationCount > 1 ? (
               <DuplicateSkillBadge locationCount={duplicateLocationCount} />
+            ) : null}
+            {updateStatus?.state === 'updateAvailable' ? (
+              <SkillUpdateBadge update={updateStatus} />
             ) : null}
             <p
               className='min-w-0 flex-1 truncate text-sm text-muted-foreground'
@@ -323,7 +348,7 @@ const SkillInspector = ({
               className='ml-auto hidden shrink-0 truncate text-right text-xs text-muted-foreground lg:block'
               title={`~${formatCompactNumber(estimateSkillTokens(skill.content))} estimated tokens${skill.updatedAt ? ` · Updated ${formatRelativeTime(skill.updatedAt)}` : ''}`}
             >
-              {getSkillSourceLabel(skill)}
+              {updateStatus?.source ?? getSkillSourceLabel(skill)}
               <span aria-hidden='true'> · </span>~
               {formatCompactNumber(estimateSkillTokens(skill.content))} tokens
               <span aria-hidden='true'> · </span>
@@ -384,36 +409,69 @@ const SkillInspector = ({
 const ManagementOverview = ({
   mode,
   hasItems,
+  isCheckingUpdates,
+  onCheckUpdates,
 }: {
-  mode: 'review' | 'archived';
+  mode: SkillManagementView;
   hasItems: boolean;
+  isCheckingUpdates: boolean;
+  onCheckUpdates: () => void;
 }) => {
   const isDisabled = mode === 'archived';
+  const isUpdates = mode === 'updates';
 
   return (
     <div className='flex h-full items-center justify-center px-8 py-10'>
       <div className='max-w-md text-center'>
         <div className='mx-auto flex size-11 items-center justify-center rounded-2xl border bg-card shadow-xs'>
-          {isDisabled ? <Power size={19} /> : <FileWarning size={19} />}
+          {isDisabled ? (
+            <Power size={19} />
+          ) : isUpdates ? (
+            <RefreshCw size={19} />
+          ) : (
+            <FileWarning size={19} />
+          )}
         </div>
         <h2 className='mt-4 text-2xl font-semibold tracking-[-0.035em]'>
           {hasItems
             ? isDisabled
               ? 'Choose a disabled skill.'
-              : 'Choose a skill to review.'
+              : isUpdates
+                ? 'Choose a skill with an update.'
+                : 'Choose a skill to review.'
             : isDisabled
               ? 'No disabled skills.'
-              : 'Nothing needs review.'}
+              : isUpdates
+                ? 'Tracked skills are current.'
+                : 'Nothing needs review.'}
         </h2>
         <p className='mt-2 text-sm leading-6 text-muted-foreground'>
           {hasItems
             ? isDisabled
               ? 'Inspect its instructions and source before enabling it for agent discovery again.'
-              : 'Review the evidence before disabling anything. Disabled skill files stay on disk.'
+              : isUpdates
+                ? 'Inspect the local instructions and tracked source. Update detection never changes files.'
+                : 'Review the evidence before disabling anything. Disabled skill files stay on disk.'
             : isDisabled
               ? 'Skills disabled from this scope will stay available here so you can enable them again.'
-              : 'No invalid, duplicate, or unusually large instructions were found in this scope.'}
+              : isUpdates
+                ? 'Rig compared each installed folder hash with its tracked GitHub source.'
+                : 'No invalid, duplicate, or unusually large instructions were found in this scope.'}
         </p>
+        {isUpdates && !hasItems ? (
+          <button
+            type='button'
+            onClick={onCheckUpdates}
+            disabled={isCheckingUpdates}
+            className='rig-pressable mx-auto mt-4 inline-flex h-8 items-center gap-2 rounded-lg border bg-background px-3 text-xs font-medium shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-50'
+          >
+            <RefreshCw
+              size={14}
+              className={cn(isCheckingUpdates && 'animate-spin')}
+            />
+            {isCheckingUpdates ? 'Checking…' : 'Check again'}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -435,6 +493,26 @@ const DuplicateSkillBadge = ({ locationCount }: { locationCount: number }) => (
       <p className='mt-0.5 opacity-80'>
         This name exists in {locationCount} locations. Check the source before
         editing; activity is grouped by skill name.
+      </p>
+    </TooltipContent>
+  </Tooltip>
+);
+
+const SkillUpdateBadge = ({ update }: { update: SkillUpdateStatus }) => (
+  <Tooltip delayDuration={300}>
+    <TooltipTrigger asChild>
+      <Badge
+        variant='outline'
+        tabIndex={0}
+        className='shrink-0 border-blue-500/25 bg-blue-500/8 text-[10px] text-blue-700 dark:text-blue-300'
+      >
+        Update available
+      </Badge>
+    </TooltipTrigger>
+    <TooltipContent sideOffset={6} className='max-w-72 leading-5'>
+      <p className='font-medium'>Newer files at {update.source}</p>
+      <p className='mt-0.5 opacity-80'>
+        Rig compared folder hashes only. Your local skill has not been changed.
       </p>
     </TooltipContent>
   </Tooltip>

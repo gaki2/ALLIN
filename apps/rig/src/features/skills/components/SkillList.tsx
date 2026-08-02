@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   Power,
   PowerOff,
+  RefreshCw,
   Search,
   Trash2,
   TriangleAlert,
@@ -38,7 +39,13 @@ import {
   getSkillSourceLabel,
   matchesSkillSearch,
 } from '../insights';
-import type { Skill, SkillUsage, SkillUsageSeries } from '../types';
+import type {
+  Skill,
+  SkillManagementView,
+  SkillUpdateStatus,
+  SkillUsage,
+  SkillUsageSeries,
+} from '../types';
 import { getSkillIdentity } from '../useRemoveSkill';
 import { SkillUsageSparkline } from './SkillUsageSparkline';
 
@@ -48,8 +55,6 @@ const loadingSkeletonIds = Array.from(
 );
 
 type SkillFilter = 'all' | 'used';
-type ManagementView = 'review' | 'archived';
-
 const skillFilters: Array<{ value: SkillFilter; label: string }> = [
   { value: 'all', label: 'All' },
   { value: 'used', label: 'Recent · 7d' },
@@ -61,6 +66,10 @@ export interface SkillListProps {
   selectedSkill: Skill | null;
   skillUsages: SkillUsage[];
   skillUsageTendencies: SkillUsageSeries[];
+  skillUpdates: SkillUpdateStatus[];
+  skillUpdatesError: unknown;
+  isCheckingUpdates: boolean;
+  onCheckUpdates: () => void;
   isLoading: boolean;
   error: string | null;
   onSelectSkill: (skill: Skill) => void;
@@ -70,8 +79,8 @@ export interface SkillListProps {
   onArchiveSkill: (skill: Skill) => void;
   onRestoreSkill: (skill: Skill) => void;
   changingSkillId: string | null;
-  managementView: ManagementView | null;
-  onManagementViewChange: (view: ManagementView | null) => void;
+  managementView: SkillManagementView | null;
+  onManagementViewChange: (view: SkillManagementView | null) => void;
 }
 
 export const SkillList = ({
@@ -80,6 +89,10 @@ export const SkillList = ({
   selectedSkill,
   skillUsages,
   skillUsageTendencies,
+  skillUpdates,
+  skillUpdatesError,
+  isCheckingUpdates,
+  onCheckUpdates,
   isLoading,
   error,
   onSelectSkill,
@@ -109,6 +122,20 @@ export const SkillList = ({
       new Map(skillUsageTendencies.map(tendency => [tendency.name, tendency])),
     [skillUsageTendencies],
   );
+  const updateByName = useMemo(
+    () => new Map(skillUpdates.map(update => [update.name, update])),
+    [skillUpdates],
+  );
+  const updateCount = useMemo(
+    () =>
+      skillUpdates.filter(update => update.state === 'updateAvailable').length,
+    [skillUpdates],
+  );
+  const unavailableUpdateCount = useMemo(
+    () =>
+      skillUpdates.filter(update => update.state === 'checkUnavailable').length,
+    [skillUpdates],
+  );
   const libraryHealth = useMemo(() => getLibraryHealth(skills), [skills]);
   const activeSkillNameCounts = useMemo(
     () => getSkillNameCounts(skills),
@@ -123,13 +150,17 @@ export const SkillList = ({
     [skills],
   );
   const visibleFilters: Array<{
-    value: SkillFilter | ManagementView;
+    value: SkillFilter | SkillManagementView;
     label: string;
   }> = managementView
     ? [
         {
           value: 'review',
           label: `Needs review · ${libraryHealth.reviewCount}`,
+        },
+        {
+          value: 'updates',
+          label: `Updates · ${updateCount}`,
         },
         {
           value: 'archived',
@@ -149,9 +180,11 @@ export const SkillList = ({
               skill,
               duplicateNames: duplicateSkillNames,
             }).length > 0
-          : managementView === 'archived' ||
-            filter === 'all' ||
-            (filter === 'used' && (usage?.count ?? 0) > 0);
+          : managementView === 'updates'
+            ? updateByName.get(skill.name)?.state === 'updateAvailable'
+            : managementView === 'archived' ||
+              filter === 'all' ||
+              (filter === 'used' && (usage?.count ?? 0) > 0);
 
       return matchesQuery && matchesFilter;
     });
@@ -169,6 +202,7 @@ export const SkillList = ({
     filter,
     managementView,
     skills,
+    updateByName,
     usageByName,
   ]);
 
@@ -204,14 +238,41 @@ export const SkillList = ({
             <div className='mt-1 flex items-end justify-between gap-3'>
               <div>
                 <h1 className='text-lg font-semibold tracking-[-0.02em]'>
-                  {managementView === 'archived' ? 'Disabled' : 'Needs review'}
+                  {managementView === 'archived'
+                    ? 'Disabled'
+                    : managementView === 'updates'
+                      ? 'Updates'
+                      : 'Needs review'}
                 </h1>
                 <p className='text-xs text-muted-foreground'>
                   {managementView === 'archived'
                     ? 'Kept on disk and excluded from agent discovery'
-                    : 'Issues that may affect discovery or instruction size'}
+                    : managementView === 'updates'
+                      ? 'Newer remote files detected without changing local skills'
+                      : 'Issues that may affect discovery or instruction size'}
                 </p>
               </div>
+              {managementView === 'updates' ? (
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type='button'
+                      onClick={onCheckUpdates}
+                      disabled={isCheckingUpdates}
+                      aria-label='Check skill updates again'
+                      className='rig-pressable inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-50'
+                    >
+                      <RefreshCw
+                        size={14}
+                        className={cn(isCheckingUpdates && 'animate-spin')}
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side='bottom' sideOffset={6}>
+                    Check GitHub again. This does not change local files.
+                  </TooltipContent>
+                </Tooltip>
+              ) : null}
             </div>
           </div>
         ) : (
@@ -233,6 +294,30 @@ export const SkillList = ({
                   tooltip='Skills with duplicate names, invalid files, or unusually large instructions.'
                   onClick={() => {
                     onManagementViewChange('review');
+                    onClearSelection();
+                  }}
+                />
+                <span aria-hidden='true' className='text-muted-foreground/40'>
+                  ·
+                </span>
+                <ManagementShortcut
+                  label='Updates'
+                  count={updateCount}
+                  tooltip={
+                    isCheckingUpdates
+                      ? 'Checking tracked GitHub sources. Local files will not be changed.'
+                      : skillUpdatesError
+                        ? 'The update check could not be completed. Open this view to try again.'
+                        : skillUpdates.length === 0
+                          ? 'No skills tracked by the skills CLI were found.'
+                          : unavailableUpdateCount > 0
+                            ? `${unavailableUpdateCount} tracked source${unavailableUpdateCount === 1 ? '' : 's'} could not be checked.`
+                            : updateCount > 0
+                              ? 'Newer remote files are available. Detection is read-only.'
+                              : 'All tracked GitHub skills are current.'
+                  }
+                  onClick={() => {
+                    onManagementViewChange('updates');
                     onClearSelection();
                   }}
                 />
@@ -280,7 +365,11 @@ export const SkillList = ({
                   : filter === option.value
               }
               onClick={() => {
-                if (option.value === 'review' || option.value === 'archived') {
+                if (
+                  option.value === 'review' ||
+                  option.value === 'updates' ||
+                  option.value === 'archived'
+                ) {
                   onManagementViewChange(option.value);
                   onClearSelection();
                   return;
@@ -319,9 +408,13 @@ export const SkillList = ({
                 ? 'No skills match your search.'
                 : managementView === 'archived'
                   ? 'No disabled skills.'
-                  : managementView === 'review'
-                    ? 'No skills need review.'
-                    : 'No skills match this view.'}
+                  : managementView === 'updates'
+                    ? isCheckingUpdates
+                      ? 'Checking tracked sources…'
+                      : 'No updates available.'
+                    : managementView === 'review'
+                      ? 'No skills need review.'
+                      : 'No skills match this view.'}
             </div>
           ) : null}
 
@@ -344,6 +437,7 @@ export const SkillList = ({
               skill,
               duplicateNames: duplicateSkillNames,
             });
+            const updateStatus = updateByName.get(skill.name);
 
             return (
               <ContextMenu key={skillIdentity}>
@@ -392,6 +486,9 @@ export const SkillList = ({
                             locationCount={duplicateLocationCount}
                           />
                         ) : null}
+                        {updateStatus?.state === 'updateAvailable' ? (
+                          <SkillUpdateIndicator source={updateStatus.source} />
+                        ) : null}
                       </span>
 
                       <span className='mt-1 line-clamp-1 text-xs text-muted-foreground'>
@@ -426,7 +523,9 @@ export const SkillList = ({
                         </span>
                         <span aria-hidden='true'>·</span>
                         <span className='truncate'>
-                          {getSkillSourceLabel(skill)}
+                          {managementView === 'updates' && updateStatus
+                            ? updateStatus.source
+                            : getSkillSourceLabel(skill)}
                         </span>
                       </span>
                     </span>
@@ -491,9 +590,11 @@ export const SkillList = ({
         <span className='shrink-0'>
           {managementView === 'archived'
             ? `${archivedSkills.length} disabled`
-            : managementView === 'review'
-              ? `${libraryHealth.reviewCount} to review`
-              : `${skills.length} skills`}
+            : managementView === 'updates'
+              ? `${updateCount} updates`
+              : managementView === 'review'
+                ? `${libraryHealth.reviewCount} to review`
+                : `${skills.length} skills`}
         </span>
       </div>
 
@@ -582,6 +683,26 @@ const DuplicateSkillIndicator = ({
       <p className='mt-0.5 opacity-80'>
         Found in {locationCount} locations. Activity is grouped by name, so
         calls from these copies may appear together.
+      </p>
+    </TooltipContent>
+  </Tooltip>
+);
+
+const SkillUpdateIndicator = ({ source }: { source: string }) => (
+  <Tooltip delayDuration={300}>
+    <TooltipTrigger asChild>
+      <Badge
+        variant='outline'
+        tabIndex={0}
+        className='h-5 shrink-0 border-blue-500/25 bg-blue-500/8 px-1.5 text-[10px] text-blue-700 dark:text-blue-300'
+      >
+        Update
+      </Badge>
+    </TooltipTrigger>
+    <TooltipContent side='right' sideOffset={6} className='max-w-64 leading-5'>
+      <p className='font-medium'>Newer remote files detected</p>
+      <p className='mt-0.5 opacity-80'>
+        Tracked from {source}. This check did not change your local skill.
       </p>
     </TooltipContent>
   </Tooltip>

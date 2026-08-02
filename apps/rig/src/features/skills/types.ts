@@ -127,6 +127,21 @@ export const SkillUsageSeriesSchema = z.object({
   series: z.number().array(),
 });
 
+export const SkillUpdateStateSchema = z.enum([
+  'current',
+  'updateAvailable',
+  'checkUnavailable',
+]);
+
+export const SkillUpdateStatusSchema = z.object({
+  name: z.string(),
+  source: z.string(),
+  sourceUrl: z.string().nullable(),
+  state: SkillUpdateStateSchema,
+  checkedAt: z.string(),
+  message: z.string().nullable(),
+});
+
 export type SkillRoot = z.infer<typeof SkillRootSchema>;
 export type SkillRootKind = z.infer<typeof SkillRootKindSchema>;
 export type SkillValidationErrorCode = z.infer<
@@ -153,3 +168,6 @@ export type BucketType = z.infer<typeof BucketTypeSchema>;
 export type SkillUsage = z.infer<typeof SkillUsageSchema>;
 export type SkillUsageEvent = z.infer<typeof SkillUsageEventSchema>;
 export type SkillUsageSeries = z.infer<typeof SkillUsageSeriesSchema>;
+export type SkillUpdateState = z.infer<typeof SkillUpdateStateSchema>;
+export type SkillUpdateStatus = z.infer<typeof SkillUpdateStatusSchema>;
+export type SkillManagementView = 'review' | 'updates' | 'archived';
