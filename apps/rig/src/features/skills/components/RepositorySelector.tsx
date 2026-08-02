@@ -14,6 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   toast,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from '@allin/ui';
 import {
   ChevronDown,
@@ -123,20 +126,31 @@ export const RepositorySelector = ({
           />
         ))}
 
-        <button
-          type='button'
-          aria-label={isImporting ? 'Adding repository' : 'Add repository'}
-          title={isImporting ? 'Adding repository…' : 'Add repository'}
-          disabled={isImporting}
-          onClick={onImportRepository}
-          className='rig-pressable flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed bg-background/80 text-muted-foreground shadow-xs hover:border-solid hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60'
-        >
-          {isImporting ? (
-            <LoaderCircle size={15} className='animate-spin' />
-          ) : (
-            <Plus size={16} />
-          )}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type='button'
+              aria-label={
+                isImporting ? 'Adding project folder' : 'Add project folder'
+              }
+              disabled={isImporting}
+              onClick={onImportRepository}
+              className='rig-pressable flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-dashed bg-background/80 px-0 text-muted-foreground shadow-xs hover:border-solid hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60 sm:w-auto sm:px-3'
+            >
+              {isImporting ? (
+                <LoaderCircle size={15} className='animate-spin' />
+              ) : (
+                <Plus size={16} />
+              )}
+              <span className='hidden text-sm font-medium sm:inline'>
+                {isImporting ? 'Adding…' : 'Add project'}
+              </span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side='bottom'>
+            Choose a project folder to show its skills
+          </TooltipContent>
+        </Tooltip>
       </nav>
 
       <AlertDialog
