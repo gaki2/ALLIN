@@ -16,14 +16,23 @@ import { useFetchArchivedSkills } from '../useFetchArchivedSkills';
 import { useFetchSkills } from '../useFetchSkills';
 import { getSkillIdentity, useRemoveSkill } from '../useRemoveSkill';
 import { useSkillArchive } from '../useSkillArchive';
+import {
+  getSkillSourceIdFromPath,
+  isSkillSourceVisible,
+  type SkillSourceId,
+} from '../skillSources';
 import { SkillContentViewer } from './SkillContentViewer';
 import { SkillList } from './SkillList';
 
 interface SkillRootProps {
   roots: SkillRootModel[];
+  hiddenSkillSourceIds: ReadonlySet<SkillSourceId>;
 }
 
-export const SkillRoot = ({ roots }: SkillRootProps) => {
+export const SkillRoot = ({
+  roots,
+  hiddenSkillSourceIds,
+}: SkillRootProps) => {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
   const [managementView, setManagementView] =
@@ -59,9 +68,34 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
       queryClient.setQueryData(['skill-updates'], statuses);
     },
   });
+  const isCheckingUpdates = isFetchingUpdates || forceUpdateCheck.isPending;
+  const updatesError = skillUpdatesError ?? forceUpdateCheck.error;
+  const checkUpdatesNow = () => forceUpdateCheck.mutate();
+  const visibleSkills = useMemo(
+    () =>
+      skills.filter(skill =>
+        isSkillSourceVisible(skill, hiddenSkillSourceIds),
+      ),
+    [hiddenSkillSourceIds, skills],
+  );
+  const visibleArchivedSkills = useMemo(
+    () =>
+      archivedSkills.filter(skill =>
+        isSkillSourceVisible(skill, hiddenSkillSourceIds),
+      ),
+    [archivedSkills, hiddenSkillSourceIds],
+  );
+  const visibleSkillUpdates = useMemo(
+    () =>
+      skillUpdates.filter(update => {
+        const sourceId = getSkillSourceIdFromPath(update.installPath);
+        return sourceId === null || !hiddenSkillSourceIds.has(sourceId);
+      }),
+    [hiddenSkillSourceIds, skillUpdates],
+  );
   const allSkills = useMemo(
-    () => [...skills, ...archivedSkills],
-    [archivedSkills, skills],
+    () => [...visibleSkills, ...visibleArchivedSkills],
+    [visibleArchivedSkills, visibleSkills],
   );
   const selectedSkillIdSet = useMemo(
     () => new Set(selectedSkillIds),
@@ -99,10 +133,6 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
       clearChangedSkill(changedSkill);
     },
   });
-  const isCheckingUpdates = isFetchingUpdates || forceUpdateCheck.isPending;
-  const updatesError = skillUpdatesError ?? forceUpdateCheck.error;
-  const checkUpdatesNow = () => forceUpdateCheck.mutate();
-
   const clearSelection = () => {
     setSelectedSkillId(null);
     setSelectedSkillIds([]);
@@ -118,13 +148,13 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
     <div className='flex min-h-0 flex-1'>
       <SidebarLayout className={selectedSkill ? 'max-md:hidden' : undefined}>
         <SkillList
-          skills={skills}
-          archivedSkills={archivedSkills}
+          skills={visibleSkills}
+          archivedSkills={visibleArchivedSkills}
           selectedSkill={selectedSkill}
           selectedSkillIds={selectedSkillIdSet}
           skillUsages={skillUsages}
           skillUsageTendencies={skillUsageTendencies}
-          skillUpdates={skillUpdates}
+          skillUpdates={visibleSkillUpdates}
           skillUpdatesError={updatesError}
           isCheckingUpdates={isCheckingUpdates}
           onCheckUpdates={checkUpdatesNow}
@@ -156,7 +186,7 @@ export const SkillRoot = ({ roots }: SkillRootProps) => {
           skill={selectedSkill}
           skills={allSkills}
           weekUsages={skillUsages}
-          skillUpdates={skillUpdates}
+          skillUpdates={visibleSkillUpdates}
           isCheckingUpdates={isCheckingUpdates}
           onCheckUpdates={checkUpdatesNow}
           onSelectSkill={selectOneSkill}

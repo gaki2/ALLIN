@@ -7,10 +7,12 @@ import { SkillRoot } from '@/features/skills/components/SkillRoot';
 import { useImportSkillRoot } from '@/features/skills/useImportSkillRoot';
 import { useSkillRepositorySelection } from '@/features/skills/useSkillRepositorySelection';
 import { useSkillRoots } from '@/features/skills/useSkillRoots';
+import { useSkillSourceVisibility } from '@/features/skills/skillSources';
 import { HeaderLayout } from '@/layouts/HeaderLayout';
 
 export const Root = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { hiddenSourceIds, setSourceVisible } = useSkillSourceVisibility();
 
   const { data: roots = [] } = useSkillRoots();
   const repositorySelection = useSkillRepositorySelection({
@@ -44,8 +46,16 @@ export const Root = () => {
           </Button>
         </div>
       </HeaderLayout>
-      <SkillRoot roots={repositorySelection.visibleRoots} />
-      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+      <SkillRoot
+        roots={repositorySelection.visibleRoots}
+        hiddenSkillSourceIds={hiddenSourceIds}
+      />
+      <SettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        hiddenSkillSourceIds={hiddenSourceIds}
+        onSkillSourceVisibilityChange={setSourceVisible}
+      />
     </main>
   );
 };

@@ -1,17 +1,21 @@
 import type { Skill } from './types';
+import { getSkillSourceId } from './skillSources';
 
 export const LARGE_SKILL_CHARACTER_THRESHOLD = 16_000;
 
 export const estimateSkillTokens = (content: string) =>
   Math.max(1, Math.ceil(content.length / 4));
 
-export const getSkillSourceLabel = (skill: Pick<Skill, 'rootPath'>) => {
+export const getSkillSourceLabel = (
+  skill: Pick<Skill, 'rootPath' | 'relativePath'>,
+) => {
+  const sourceId = getSkillSourceId(skill);
+
+  if (sourceId === 'agents') return 'Codex';
+  if (sourceId === 'claude') return 'Claude';
+  if (sourceId === 'opencode') return 'OpenCode';
+
   const normalizedPath = skill.rootPath.replaceAll('\\', '/');
-
-  if (normalizedPath.includes('/.agents/skills')) return 'Codex';
-  if (normalizedPath.includes('/.claude/skills')) return 'Claude';
-  if (normalizedPath.includes('/.config/opencode/skills')) return 'OpenCode';
-
   const segments = normalizedPath.split('/').filter(Boolean);
   return segments.at(-1) ?? skill.rootPath;
 };

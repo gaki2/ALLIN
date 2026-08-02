@@ -75,6 +75,14 @@ describe('skill library insights', () => {
         makeSkill({ rootPath: '/Users/test/.config/opencode/skills' }),
       ),
     ).toBe('OpenCode');
+    expect(
+      getSkillSourceLabel(
+        makeSkill({
+          rootPath: '/work/rig',
+          relativePath: '.claude/skills/accessibility',
+        }),
+      ),
+    ).toBe('Claude');
   });
 
   it('builds the absolute SKILL.md path for each platform', () => {
