@@ -14,9 +14,18 @@ export const useImportSkillRoot = ({
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (path: string) => Effect.runPromise(importSkillRoot(path)),
-    onSuccess: importedRoot => {
-      onImported(importedRoot);
+    mutationFn: ({ path }: { path: string; selectAfterImport: boolean }) =>
+      Effect.runPromise(importSkillRoot(path)),
+    onSuccess: (importedRoot, { selectAfterImport }) => {
+      if (selectAfterImport) onImported(importedRoot);
+      queryClient.setQueryData<SkillRoot[]>(skillRootsQueryKey, currentRoots =>
+        currentRoots
+          ? [
+              ...currentRoots.filter(root => root.id !== importedRoot.id),
+              importedRoot,
+            ]
+          : [importedRoot],
+      );
       void queryClient.invalidateQueries({ queryKey: skillRootsQueryKey });
       posthog.capture('repository_imported', {
         repository_id: importedRoot.id,
@@ -33,11 +42,13 @@ export const useImportSkillRoot = ({
       return;
     }
 
-    mutation.mutate(selectedPath);
+    mutation.mutate({ path: selectedPath, selectAfterImport: true });
   };
 
   return {
     importFromFolder,
+    importFromPath: (path: string, selectAfterImport: boolean) =>
+      mutation.mutateAsync({ path, selectAfterImport }),
     isImporting: mutation.isPending,
   };
 };
