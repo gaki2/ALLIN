@@ -2,56 +2,102 @@
 
 @variant dark (&:where(.dark *));
 
-@keyframes rig-float-slow {
-  0% {
-    transform: translate3d(-50%, 0, 0) scale(1);
+:root {
+  --rig-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body:has(.rig-home) {
+  background: #f8f8f6;
+}
+
+.dark body:has(.rig-home) {
+  background: #0d0e10;
+}
+
+.rig-home {
+  font-family:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+.rig-home ::selection {
+  background: rgba(82, 103, 248, 0.2);
+}
+
+.rig-grid-background {
+  background-image:
+    linear-gradient(rgba(18, 19, 22, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 19, 22, 0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: center top;
+}
+
+.dark .rig-grid-background {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+}
+
+.rig-product-frame {
+  animation: rig-product-enter 420ms var(--rig-ease-out) both;
+}
+
+.rig-pressable:active {
+  transform: scale(0.98);
+}
+
+.rig-home details > summary::-webkit-details-marker {
+  display: none;
+}
+
+@keyframes rig-product-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
-  25% {
-    transform: translate3d(-30%, -42px, 0) scale(1.04);
-  }
-  50% {
-    transform: translate3d(-58%, -72px, 0) scale(1.08);
-  }
-  75% {
-    transform: translate3d(-72%, -28px, 0) scale(1.03);
-  }
-  100% {
-    transform: translate3d(-50%, 0, 0) scale(1);
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@keyframes rig-float-soft {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
+@media (max-width: 640px) {
+  .rig-product-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
-  20% {
-    transform: translate3d(24px, -14px, 0) scale(1.03);
+
+  .rig-product-sidebar {
+    display: none;
   }
-  45% {
-    transform: translate3d(58px, -52px, 0) scale(1.07);
-  }
-  70% {
-    transform: translate3d(12px, -84px, 0) scale(1.05);
-  }
-  90% {
-    transform: translate3d(-18px, -36px, 0) scale(1.02);
-  }
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
+
+  .rig-product-content {
+    min-height: 430px;
   }
 }
 
-.rig-float-slow {
-  animation: rig-float-slow 26s ease-in-out infinite;
-}
-
-.rig-float-soft {
-  animation: rig-float-soft 30s ease-in-out infinite;
+@media (prefers-contrast: more) {
+  .rig-home a,
+  .rig-home button,
+  .rig-home details {
+    border-color: currentColor;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rig-float-slow,
-  .rig-float-soft {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .rig-product-frame {
     animation: none;
+  }
+
+  .rig-pressable,
+  .rig-home details summary span {
+    transition: none;
   }
 }
