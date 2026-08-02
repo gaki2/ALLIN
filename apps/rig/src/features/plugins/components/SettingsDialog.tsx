@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   cn,
   Dialog,
@@ -42,6 +43,7 @@ const agents: Array<{
   sourceId: SkillSourceId;
   description: string;
   buttonLabel: string;
+  badge?: string;
   prompt: string;
 }> = [
   {
@@ -64,16 +66,18 @@ Preserve my existing Claude Code settings. If anything fails, explain the exact 
     name: 'Codex',
     sourceId: 'agents',
     description:
-      'Uses the shared .agents skill folders so Codex and Rig discover the same skills. This does not enable usage tracking.',
-    buttonLabel: 'Copy Codex setup',
-    prompt: `Set up my skills so Codex and Rig can use the same library.
+      'Installs Rig’s local hook to record explicit $skill mentions. Prompt text and skill files are not stored.',
+    buttonLabel: 'Copy beta setup',
+    badge: 'Explicit tracking · Beta',
+    prompt: `Set up Rig explicit skill tracking for Codex on this Mac.
 
-1. Inspect my existing personal and project skills without deleting or moving anything.
-2. Use ~/.agents/skills for personal skills and .agents/skills for project skills, following the official Codex Agent Skills locations.
-3. If skills exist only in another location, propose a safe copy or symlink plan and ask before changing files.
-4. Confirm each skill has a SKILL.md with valid name and description frontmatter.
+1. Run codex plugin marketplace add builder-mafia/rig
+2. Run codex plugin add rig-codex@rig
+3. Start a new Codex session and run /hooks.
+4. Review and trust the Rig UserPromptSubmit hook. Do not bypass hook trust.
+5. Invoke a skill explicitly with $skill-name and confirm Rig shows a Codex activity event.
 
-Do not use ~/.codex/skills; that is not the documented Codex skills location.`,
+This beta records only explicit $skill mentions. It never stores prompt text or skill contents. If multiple installed skills have the same name, explain that Codex does not yet expose the selected skill file path, so Rig can only attribute the call by name. Preserve all existing Codex settings and hooks.`,
   },
   {
     id: 'opencode',
@@ -277,7 +281,14 @@ const AgentSetup = ({
               />
             </span>
             <div className='min-w-0 flex-1'>
-              <h3 className='text-sm font-semibold'>{agent.name}</h3>
+              <div className='flex flex-wrap items-center gap-2'>
+                <h3 className='text-sm font-semibold'>{agent.name}</h3>
+                {agent.badge ? (
+                  <Badge variant='secondary' className='text-[10px]'>
+                    {agent.badge}
+                  </Badge>
+                ) : null}
+              </div>
               <p className='mt-1 text-xs leading-5 text-muted-foreground'>
                 {agent.description}
               </p>

@@ -434,6 +434,7 @@ const SkillInspector = ({
                 events={recentEvents}
                 error={eventsError}
                 isLoading={isEventsLoading}
+                hasDuplicateNames={duplicateLocationCount > 1}
               />
             ) : (
               <SkillHistoryPanel skill={skill} />
@@ -748,10 +749,12 @@ const ActivityPanel = ({
   events,
   error,
   isLoading,
+  hasDuplicateNames,
 }: {
   events: SkillUsageEvent[];
   error: unknown;
   isLoading: boolean;
+  hasDuplicateNames: boolean;
 }) => (
   <div
     className='overflow-hidden rounded-2xl border bg-card'
@@ -762,6 +765,12 @@ const ActivityPanel = ({
       <p className='mt-0.5 text-xs text-muted-foreground'>
         The latest 20 recorded calls for this skill name.
       </p>
+      {hasDuplicateNames ? (
+        <p className='mt-1 text-xs text-amber-700'>
+          Same-name skills share activity because agents do not report the
+          selected file path.
+        </p>
+      ) : null}
     </div>
     <div className='divide-y px-4'>
       {isLoading ? (
@@ -800,10 +809,17 @@ const UsageEventRow = ({ event }: { event: SkillUsageEvent }) => (
       </p>
     </div>
     <Badge variant='outline' className='shrink-0 font-mono text-[11px]'>
-      {event.source}
+      {formatUsageSource(event.source)}
     </Badge>
   </div>
 );
+
+const formatUsageSource = (source: string) => {
+  if (source === 'codex') return 'Codex · Explicit';
+  if (source === 'claude-code') return 'Claude Code';
+  if (source === 'opencode') return 'OpenCode';
+  return source;
+};
 
 const formatCompactNumber = (value: number) =>
   new Intl.NumberFormat(undefined, {

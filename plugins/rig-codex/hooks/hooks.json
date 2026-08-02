@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/log-explicit-skill-usage.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Recording explicit Rig skill activity"
+          }
+        ]
+      }
+    ]
+  }
+}

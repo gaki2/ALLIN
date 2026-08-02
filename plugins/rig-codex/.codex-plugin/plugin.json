@@ -1,0 +1,30 @@
+{
+  "name": "rig-codex",
+  "version": "0.1.0+codex.20260802062701",
+  "description": "Track explicit Codex skill mentions locally for Rig",
+  "author": {
+    "name": "Rig"
+  },
+  "homepage": "https://github.com/builder-mafia/rig/tree/main/plugins/rig-codex",
+  "repository": "https://github.com/builder-mafia/rig",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "rig",
+    "skills",
+    "usage-tracking"
+  ],
+  "interface": {
+    "displayName": "Rig for Codex",
+    "shortDescription": "Track explicit $skill mentions locally.",
+    "longDescription": "Records explicit $skill mentions from Codex prompts in Rig's local activity log. Prompt text and skill contents are never stored.",
+    "developerName": "Rig",
+    "category": "Productivity",
+    "capabilities": [
+      "Local activity tracking"
+    ],
+    "defaultPrompt": [
+      "Use $skill-name so Rig can record this explicit call."
+    ]
+  }
+}

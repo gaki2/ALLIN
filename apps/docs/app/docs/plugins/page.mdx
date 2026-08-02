@@ -2,6 +2,24 @@
 
 Rig plugins write local skill usage events to `~/.rig/usage.jsonl`. Rig then reads that file to power skill counts, trends, and dashboard summaries.
 
+## Codex (Explicit tracking beta)
+
+Add the Rig marketplace and install the Codex plugin:
+
+```sh
+codex plugin marketplace add builder-mafia/rig
+codex plugin add rig-codex@rig
+```
+
+Start a new Codex session, run `/hooks`, and review and trust the Rig
+`UserPromptSubmit` hook. After approval, explicit mentions such as
+`$skill-creator` are recorded locally. Prompt text and skill contents are not
+stored.
+
+This beta does not infer implicit skill activation. Codex does not currently
+include the selected skill file path in this hook event, so installed skills
+with the same name share name-level activity in Rig.
+
 ## OpenCode
 
 Add `rig-opencode` to your OpenCode config. The config file is usually located at `~/.config/opencode/opencode.json`.
@@ -52,10 +70,16 @@ For local testing from a checkout, add the repository path instead:
 
 ## Recorded Event Shape
 
-Both plugins write one event per skill invocation:
+Integrations write one event per skill invocation:
 
 ```json
 {"source":"opencode","skillName":"typescript-fix-null-safety","usedAt":"2026-05-30T01:12:00.000Z"}
 ```
 
 `source` identifies the agent integration, `skillName` is matched against discovered skills, and `usedAt` must be an RFC 3339 timestamp.
+
+Codex explicit events also include privacy-safe diagnostic metadata:
+
+```json
+{"source":"codex","skillName":"skill-creator","usedAt":"2026-08-02T06:27:47.858Z","trackingMode":"explicit","sessionId":"session-id","cwd":"/workspace"}
+```

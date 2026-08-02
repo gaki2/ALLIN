@@ -211,3 +211,20 @@ fn bucket_count(start: DateTime<Utc>, end: DateTime<Utc>, bucket_duration: Durat
 
     (((seconds + bucket_seconds - 1) / bucket_seconds) as usize).max(1)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::parse_skill_usage_event;
+
+    #[test]
+    fn reads_codex_explicit_tracking_records_with_metadata() {
+        let event = parse_skill_usage_event(
+            r#"{"source":"codex","skillName":"caveman-commit","usedAt":"2026-08-02T06:27:47.858Z","trackingMode":"explicit","sessionId":"session-1","cwd":"/workspace"}"#,
+        )
+        .expect("Codex usage record should parse");
+
+        assert_eq!(event.name, "caveman-commit");
+        assert_eq!(event.source, "codex");
+        assert_eq!(event.used_at.to_rfc3339(), "2026-08-02T06:27:47.858+00:00");
+    }
+}
