@@ -482,8 +482,8 @@ export const SkillList = ({
         ) : null}
       </div>
 
-      <ScrollArea className='min-h-0 flex-1'>
-        <div className='space-y-1 p-2'>
+      <ScrollArea className='min-h-0 min-w-0 flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:w-full [&_[data-radix-scroll-area-viewport]>div]:max-w-full'>
+        <div className='min-w-0 space-y-1 p-2'>
           {visibleSkills.length === 0 ? (
             <div className='m-2 rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground'>
               {deferredSearchQuery
@@ -548,7 +548,7 @@ export const SkillList = ({
                       }
                     }}
                     className={cn(
-                      'rig-pressable group flex w-full min-w-0 items-center gap-3 rounded-xl border px-3 py-3 text-left',
+                      'rig-pressable group flex w-full min-w-0 max-w-full items-center gap-3 rounded-xl border px-3 py-3 text-left',
                       'hover:bg-accent hover:text-accent-foreground',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       isFocused
@@ -561,7 +561,7 @@ export const SkillList = ({
                   >
                     <SkillUsageSparkline values={tendency?.series ?? []} />
 
-                    <span className='min-w-0 flex-1'>
+                    <span className='min-w-0 flex-1 overflow-hidden'>
                       <span className='flex min-w-0 items-center gap-1.5'>
                         <span className='truncate text-sm font-medium'>
                           {skill.name}
