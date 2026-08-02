@@ -3,12 +3,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   toast,
 } from '@allin/ui';
-import { Check, Clipboard, Link2, Share2 } from 'lucide-react';
+import { Bot, Check, Clipboard, Share2, Terminal } from 'lucide-react';
 import { useState } from 'react';
 import type { Skill, SkillUpdateStatus } from '../types';
 
@@ -32,7 +31,11 @@ export const ShareSkillDialog = ({
       setCopied(kind);
       window.setTimeout(() => setCopied(null), 1_500);
     } catch {
-      toast.error('Could not copy sharing instructions');
+      toast.error(
+        kind === 'source'
+          ? 'Couldn’t copy the npx command.'
+          : 'Couldn’t copy the install prompt.',
+      );
     }
   };
 
@@ -51,8 +54,7 @@ export const ShareSkillDialog = ({
           <DialogHeader>
             <DialogTitle>Share {skill.name}</DialogTitle>
             <DialogDescription>
-              Rig copies an install instruction. It does not upload your skill,
-              history, or local path.
+              Choose how to install this skill.
             </DialogDescription>
           </DialogHeader>
 
@@ -60,13 +62,11 @@ export const ShareSkillDialog = ({
             {sourceCommand ? (
               <section className='rounded-xl border p-4'>
                 <div className='flex items-start gap-3'>
-                  <Link2 size={17} className='mt-0.5 shrink-0' />
+                  <Terminal size={17} className='mt-0.5 shrink-0' />
                   <div className='min-w-0 flex-1'>
-                    <h3 className='text-sm font-semibold'>Share source</h3>
+                    <h3 className='text-sm font-semibold'>Install with npx</h3>
                     <p className='mt-1 text-xs leading-5 text-muted-foreground'>
-                      Best for remote skills. The recipient installs the latest
-                      upstream version; your local edits and Rig history are not
-                      included.
+                      Copy the command and run it in a terminal.
                     </p>
                     <code className='mt-3 block overflow-x-auto rounded-lg bg-muted px-3 py-2 text-[11px]'>
                       {sourceCommand}
@@ -79,7 +79,9 @@ export const ShareSkillDialog = ({
                       onClick={() => copy(sourceCommand, 'source')}
                     >
                       {copied === 'source' ? <Check /> : <Clipboard />}
-                      {copied === 'source' ? 'Copied' : 'Copy install command'}
+                      {copied === 'source'
+                        ? 'Command copied'
+                        : 'Copy npx command'}
                     </Button>
                   </div>
                 </div>
@@ -88,13 +90,12 @@ export const ShareSkillDialog = ({
 
             <section className='rounded-xl border p-4'>
               <div className='flex items-start gap-3'>
-                <Share2 size={17} className='mt-0.5 shrink-0' />
+                <Bot size={17} className='mt-0.5 shrink-0' />
                 <div className='min-w-0 flex-1'>
-                  <h3 className='text-sm font-semibold'>Share current file</h3>
+                  <h3 className='text-sm font-semibold'>Install with AI</h3>
                   <p className='mt-1 text-xs leading-5 text-muted-foreground'>
-                    Copies an AI-ready prompt that rebuilds SKILL.md from the
-                    current name, description, and instructions. Companion files
-                    such as scripts or references are not included.
+                    Copy the prompt and paste it into ChatGPT, Claude, Codex, or
+                    another coding assistant.
                   </p>
                   <Button
                     type='button'
@@ -104,28 +105,14 @@ export const ShareSkillDialog = ({
                     onClick={() => copy(installPrompt, 'prompt')}
                   >
                     {copied === 'prompt' ? <Check /> : <Clipboard />}
-                    {copied === 'prompt' ? 'Copied' : 'Copy AI install prompt'}
+                    {copied === 'prompt'
+                      ? 'Prompt copied'
+                      : 'Copy install prompt'}
                   </Button>
                 </div>
               </div>
             </section>
           </div>
-
-          <p className='text-xs leading-5 text-muted-foreground'>
-            Private expiring links require an encrypted relay service. Rig does
-            not label clipboard sharing as “private” because anyone who receives
-            the copied content can read it.
-          </p>
-
-          <DialogFooter>
-            <Button
-              type='button'
-              variant='outline'
-              onClick={() => setOpen(false)}
-            >
-              Done
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -159,7 +146,11 @@ export const ShareSkillsDialog = ({
       setCopied(kind);
       window.setTimeout(() => setCopied(null), 1_500);
     } catch {
-      toast.error('Could not copy sharing instructions');
+      toast.error(
+        kind === 'source'
+          ? 'Couldn’t copy the npx commands.'
+          : 'Couldn’t copy the install prompt.',
+      );
     }
   };
 
@@ -169,8 +160,7 @@ export const ShareSkillsDialog = ({
         <DialogHeader>
           <DialogTitle>Share {skills.length} skills</DialogTitle>
           <DialogDescription>
-            Copy one set of instructions instead of packaging files or uploading
-            them to a third-party service.
+            Choose how to install these skills.
           </DialogDescription>
         </DialogHeader>
 
@@ -178,13 +168,14 @@ export const ShareSkillsDialog = ({
           {sourceCommands.length > 0 ? (
             <section className='rounded-xl border p-4'>
               <div className='flex items-start gap-3'>
-                <Link2 size={17} className='mt-0.5 shrink-0' />
+                <Terminal size={17} className='mt-0.5 shrink-0' />
                 <div className='min-w-0 flex-1'>
-                  <h3 className='text-sm font-semibold'>Install from source</h3>
+                  <h3 className='text-sm font-semibold'>Install with npx</h3>
                   <p className='mt-1 text-xs leading-5 text-muted-foreground'>
-                    {sourceCommands.length} of {skills.length} selected skills
-                    have a tracked remote source. This installs the latest
-                    upstream versions, without local edits or Rig history.
+                    {sourceCommands.length < skills.length
+                      ? `Available for ${sourceCommands.length} of ${skills.length} selected skills. `
+                      : null}
+                    Copy the commands and run them in a terminal.
                   </p>
                   <Button
                     type='button'
@@ -195,8 +186,10 @@ export const ShareSkillsDialog = ({
                   >
                     {copied === 'source' ? <Check /> : <Clipboard />}
                     {copied === 'source'
-                      ? 'Copied'
-                      : `Copy ${sourceCommands.length} install command${sourceCommands.length === 1 ? '' : 's'}`}
+                      ? sourceCommands.length === 1
+                        ? 'Command copied'
+                        : 'Commands copied'
+                      : `Copy ${sourceCommands.length} npx command${sourceCommands.length === 1 ? '' : 's'}`}
                   </Button>
                 </div>
               </div>
@@ -205,13 +198,12 @@ export const ShareSkillsDialog = ({
 
           <section className='rounded-xl border p-4'>
             <div className='flex items-start gap-3'>
-              <Share2 size={17} className='mt-0.5 shrink-0' />
+              <Bot size={17} className='mt-0.5 shrink-0' />
               <div className='min-w-0 flex-1'>
-                <h3 className='text-sm font-semibold'>Share current files</h3>
+                <h3 className='text-sm font-semibold'>Install with AI</h3>
                 <p className='mt-1 text-xs leading-5 text-muted-foreground'>
-                  Copies one AI-ready prompt containing the current SKILL.md
-                  content for all {skills.length} skills. Companion files and
-                  version history are not included.
+                  Copy the prompt and paste it into ChatGPT, Claude, Codex, or
+                  another coding assistant.
                 </p>
                 <Button
                   type='button'
@@ -222,28 +214,13 @@ export const ShareSkillsDialog = ({
                 >
                   {copied === 'prompt' ? <Check /> : <Clipboard />}
                   {copied === 'prompt'
-                    ? 'Copied'
-                    : 'Copy exact-file install prompt'}
+                    ? 'Prompt copied'
+                    : 'Copy install prompt'}
                 </Button>
               </div>
             </div>
           </section>
         </div>
-
-        <p className='text-xs leading-5 text-muted-foreground'>
-          Clipboard sharing stays on this device until you paste it, but anyone
-          who receives that content can read the selected skills.
-        </p>
-
-        <DialogFooter>
-          <Button
-            type='button'
-            variant='outline'
-            onClick={() => onOpenChange(false)}
-          >
-            Done
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
