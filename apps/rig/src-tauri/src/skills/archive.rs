@@ -1,7 +1,10 @@
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-use super::models::{Skill, SkillArchiveError, SkillArchiveErrorCode, SkillListingError};
+use super::models::{
+    Skill, SkillArchiveError, SkillArchiveErrorCode, SkillListingError, SkillProvider, SkillRoot,
+    SkillRootKind, SkillScopeKind,
+};
 use super::scanner::list_skills_from_root;
 
 const ARCHIVE_DIRECTORY_NAME: &str = ".archive";
@@ -13,7 +16,21 @@ pub fn list_archived_skills_from_root(root_path: &Path) -> Result<Vec<Skill>, Sk
         return Ok(Vec::new());
     }
 
-    let mut skills = list_skills_from_root(&archive_path)?;
+    let archive_root = SkillRoot {
+        id: "archive".to_string(),
+        path: archive_path.to_string_lossy().to_string(),
+        label: "Archived".to_string(),
+        exists: true,
+        kind: SkillRootKind::Repository,
+        provider: SkillProvider::Repository,
+        scope_id: root_path.to_string_lossy().to_string(),
+        scope_label: root_path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Archived".to_string()),
+        scope_kind: SkillScopeKind::Repository,
+    };
+    let mut skills = list_skills_from_root(&archive_root)?;
     let root_path = root_path.to_string_lossy().to_string();
 
     for skill in &mut skills {

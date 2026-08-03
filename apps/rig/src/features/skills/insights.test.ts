@@ -24,6 +24,12 @@ const makeSkill = (overrides: Partial<Skill> = {}): Skill => ({
   validationError: null,
   updatedAt: '2026-08-01T00:00:00Z',
   isArchived: false,
+  provider: 'agents',
+  scopeId: 'global',
+  scopeLabel: 'Global',
+  scopeKind: 'global',
+  rootId: 'global-agents',
+  rootLabel: 'Agents',
   ...overrides,
 });
 

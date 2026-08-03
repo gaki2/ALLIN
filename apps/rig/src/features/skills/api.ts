@@ -3,6 +3,7 @@ import { Data, Effect } from 'effect';
 import {
   type BucketType,
   SkillArchiveErrorSchema,
+  SkillCopyErrorSchema,
   SkillDeletionErrorSchema,
   SkillHistoryErrorSchema,
   SkillListingErrorSchema,
@@ -17,6 +18,7 @@ import {
   SkillUsageSeriesSchema,
   SkillVersionDetailSchema,
   SkillVersionSummarySchema,
+  type SkillRoot,
   type WindowType,
 } from './types';
 
@@ -234,9 +236,9 @@ export class ListSkillsError extends Data.TaggedError('ListSkillsError')<{
 // some users don't have claude folder, so we ignore these errors
 const ignoredSkillListingErrorCodes = new Set(['pathNotFound', 'notDirectory']);
 
-export const listSkills = Effect.fn('listSkills')(function* (rootPath: string) {
+export const listSkills = Effect.fn('listSkills')(function* (root: SkillRoot) {
   const result = yield* Effect.tryPromise({
-    try: () => invoke<unknown>('list_skills', { rootPath }),
+    try: () => invoke<unknown>('list_skills', { root }),
     catch: error => error,
   }).pipe(
     Effect.catchAll(error => {
@@ -253,7 +255,7 @@ export const listSkills = Effect.fn('listSkills')(function* (rootPath: string) {
         return Effect.fail(
           new ListSkillsError({
             kind: 'SkillListingError',
-            rootPath,
+            rootPath: root.path,
             cause: listingError.data,
           }),
         );
@@ -262,7 +264,7 @@ export const listSkills = Effect.fn('listSkills')(function* (rootPath: string) {
       return Effect.fail(
         new ListSkillsError({
           kind: 'InvokeError',
-          rootPath,
+          rootPath: root.path,
           cause: error,
         }),
       );
@@ -274,7 +276,7 @@ export const listSkills = Effect.fn('listSkills')(function* (rootPath: string) {
     catch: error =>
       new ListSkillsError({
         kind: 'ZodParseError',
-        rootPath,
+        rootPath: root.path,
         cause: error,
       }),
   });
@@ -371,6 +373,49 @@ const changeSkillArchive = (command: 'archive_skill' | 'restore_skill') =>
 
 export const archiveSkill = changeSkillArchive('archive_skill');
 export const restoreSkill = changeSkillArchive('restore_skill');
+
+export class CopySkillError extends Data.TaggedError('CopySkillError')<{
+  kind: 'InvokeError' | 'SkillCopyError';
+  cause: unknown;
+}> {}
+
+export const copySkill = Effect.fn('copySkill')(function* ({
+  sourceRootPath,
+  sourceRelativePath,
+  targetRootPath,
+  targetRelativePath,
+}: {
+  sourceRootPath: string;
+  sourceRelativePath: string;
+  targetRootPath: string;
+  targetRelativePath: string;
+}) {
+  yield* Effect.tryPromise({
+    try: () =>
+      invoke<void>('copy_skill', {
+        sourceRootPath,
+        sourceRelativePath,
+        targetRootPath,
+        targetRelativePath,
+      }),
+    catch: error => error,
+  }).pipe(
+    Effect.catchAll(error => {
+      const copyError = SkillCopyErrorSchema.safeParse(error);
+
+      if (copyError.success) {
+        return Effect.fail(
+          new CopySkillError({
+            kind: 'SkillCopyError',
+            cause: copyError.data,
+          }),
+        );
+      }
+
+      return Effect.fail(new CopySkillError({ kind: 'InvokeError', cause: error }));
+    }),
+  );
+});
 
 export class RemoveSkillError extends Data.TaggedError('RemoveSkillError')<{
   kind: 'InvokeError' | 'SkillDeletionError';

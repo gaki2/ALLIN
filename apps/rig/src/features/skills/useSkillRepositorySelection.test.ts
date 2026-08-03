@@ -10,6 +10,10 @@ const roots: SkillRoot[] = [
     label: 'Codex Personal Skills',
     exists: true,
     kind: 'default',
+    provider: 'agents',
+    scopeId: 'global',
+    scopeLabel: 'Global',
+    scopeKind: 'global',
   },
   {
     id: 'project-rig',
@@ -17,6 +21,10 @@ const roots: SkillRoot[] = [
     label: 'rig',
     exists: true,
     kind: 'repository',
+    provider: 'agents',
+    scopeId: '/work/rig',
+    scopeLabel: 'rig',
+    scopeKind: 'repository',
   },
 ];
 
@@ -26,7 +34,7 @@ describe('skill project scopes', () => {
   });
 
   it('shows only the selected project root', () => {
-    expect(getVisibleRoots(roots, 'project-rig').map(root => root.id)).toEqual([
+    expect(getVisibleRoots(roots, '/work/rig').map(root => root.id)).toEqual([
       'project-rig',
     ]);
   });

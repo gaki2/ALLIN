@@ -2,12 +2,27 @@ import { z } from 'zod';
 
 export const SkillRootKindSchema = z.enum(['default', 'repository']);
 
+export const SkillProviderSchema = z.enum([
+  'agents',
+  'claude',
+  'openCode',
+  'hermes',
+  'cursor',
+  'repository',
+]);
+
+export const SkillScopeKindSchema = z.enum(['global', 'repository']);
+
 export const SkillRootSchema = z.object({
   id: z.string(),
   path: z.string(),
   label: z.string(),
   exists: z.boolean(),
   kind: SkillRootKindSchema,
+  provider: SkillProviderSchema,
+  scopeId: z.string(),
+  scopeLabel: z.string(),
+  scopeKind: SkillScopeKindSchema,
 });
 
 export const SkillValidationErrorCodeSchema = z.enum([
@@ -65,6 +80,20 @@ export const SkillArchiveErrorSchema = z.object({
   message: z.string(),
 });
 
+export const SkillCopyErrorCodeSchema = z.enum([
+  'pathNotFound',
+  'notDirectory',
+  'outsideRoot',
+  'missingSkillFile',
+  'targetExists',
+  'copyFailed',
+]);
+
+export const SkillCopyErrorSchema = z.object({
+  code: SkillCopyErrorCodeSchema,
+  message: z.string(),
+});
+
 export const SkillRootImportErrorCodeSchema = z.enum([
   'pathNotFound',
   'notDirectory',
@@ -97,7 +126,7 @@ export const WindowTypeSchema = z.enum([
 
 export const BucketTypeSchema = z.enum(['hour', 'day', 'month']);
 
-export const SkillSchema = z.object({
+export const ProviderSkillSchema = z.object({
   id: z.string(),
   name: z.string(),
   rootPath: z.string(),
@@ -108,7 +137,15 @@ export const SkillSchema = z.object({
   validationError: SkillValidationErrorSchema.nullable(),
   updatedAt: z.string().nullable(),
   isArchived: z.boolean(),
+  provider: SkillProviderSchema,
+  scopeId: z.string(),
+  scopeLabel: z.string(),
+  scopeKind: SkillScopeKindSchema,
+  rootId: z.string(),
+  rootLabel: z.string(),
 });
+
+export const SkillSchema = ProviderSkillSchema;
 
 export const SkillUsageSchema = z.object({
   name: z.string(),
@@ -182,6 +219,8 @@ export const SkillHistoryErrorSchema = z.object({
 
 export type SkillRoot = z.infer<typeof SkillRootSchema>;
 export type SkillRootKind = z.infer<typeof SkillRootKindSchema>;
+export type SkillProvider = z.infer<typeof SkillProviderSchema>;
+export type SkillScopeKind = z.infer<typeof SkillScopeKindSchema>;
 export type SkillValidationErrorCode = z.infer<
   typeof SkillValidationErrorCodeSchema
 >;
@@ -194,11 +233,14 @@ export type SkillDeletionErrorCode = z.infer<
 export type SkillDeletionError = z.infer<typeof SkillDeletionErrorSchema>;
 export type SkillArchiveErrorCode = z.infer<typeof SkillArchiveErrorCodeSchema>;
 export type SkillArchiveError = z.infer<typeof SkillArchiveErrorSchema>;
+export type SkillCopyErrorCode = z.infer<typeof SkillCopyErrorCodeSchema>;
+export type SkillCopyError = z.infer<typeof SkillCopyErrorSchema>;
 export type SkillRootImportErrorCode = z.infer<
   typeof SkillRootImportErrorCodeSchema
 >;
 export type SkillRootImportError = z.infer<typeof SkillRootImportErrorSchema>;
-export type Skill = z.infer<typeof SkillSchema>;
+export type ProviderSkill = z.infer<typeof ProviderSkillSchema>;
+export type Skill = ProviderSkill;
 export type SkillUsageErrorCode = z.infer<typeof SkillUsageErrorCodeSchema>;
 export type SkillUsageError = z.infer<typeof SkillUsageErrorSchema>;
 export type WindowType = z.infer<typeof WindowTypeSchema>;

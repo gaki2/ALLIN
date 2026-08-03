@@ -56,9 +56,16 @@ export const RepositorySelector = ({
     useState<SkillRoot | null>(null);
   const [removeFailed, setRemoveFailed] = useState(false);
   const allSkillsButtonRef = useRef<HTMLButtonElement>(null);
-  const repositoryRoots = roots.filter(root => root.kind === 'repository');
+  const repositoryRoots = Array.from(
+    new Map(
+      roots
+        .filter(root => root.kind === 'repository')
+        .map(root => [root.scopeId, root]),
+    ).values(),
+  );
   const isRemovingPendingRepository =
-    repositoryPendingRemoval?.id === removingRepositoryId;
+    repositoryPendingRemoval !== null &&
+    getImportedRepositoryId(repositoryPendingRemoval) === removingRepositoryId;
 
   const selectRepository = (repositoryId: string, repositoryLabel: string) => {
     onSelectRepository(repositoryId);
@@ -70,7 +77,7 @@ export const RepositorySelector = ({
 
   const copyRepositoryPath = async (root: SkillRoot) => {
     try {
-      await navigator.clipboard.writeText(root.path);
+      await navigator.clipboard.writeText(root.scopeId);
       toast.success('Repository path copied');
     } catch {
       toast.error('Couldn’t copy the repository path.');
@@ -85,7 +92,7 @@ export const RepositorySelector = ({
 
     setRemoveFailed(false);
     const removedSelectedRepository =
-      selectedRepositoryId === repositoryPendingRemoval.id;
+      selectedRepositoryId === repositoryPendingRemoval.scopeId;
     const didRemove = await onRemoveRepository(repositoryPendingRemoval);
     if (didRemove) {
       setRepositoryPendingRemoval(null);
@@ -114,10 +121,10 @@ export const RepositorySelector = ({
 
         {repositoryRoots.map(root => (
           <RepositoryPill
-            key={root.id}
+            key={root.scopeId}
             root={root}
-            isSelected={selectedRepositoryId === root.id}
-            onSelect={() => selectRepository(root.id, root.label)}
+            isSelected={selectedRepositoryId === root.scopeId}
+            onSelect={() => selectRepository(root.scopeId, root.scopeLabel)}
             onCopyPath={() => copyRepositoryPath(root)}
             onRequestRemoval={() => {
               setRemoveFailed(false);
@@ -165,7 +172,7 @@ export const RepositorySelector = ({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Remove “{repositoryPendingRemoval?.label}” from Rig?
+              Remove “{repositoryPendingRemoval?.scopeLabel}” from Rig?
             </AlertDialogTitle>
             <AlertDialogDescription className='space-y-3'>
               <span className='block'>
@@ -174,7 +181,7 @@ export const RepositorySelector = ({
                 anytime.
               </span>
               <span className='block break-all rounded-lg bg-muted px-3 py-2 font-mono text-xs text-foreground'>
-                {repositoryPendingRemoval?.path}
+                {repositoryPendingRemoval?.scopeId}
               </span>
               {removeFailed ? (
                 <span className='block text-destructive'>
@@ -220,7 +227,7 @@ const RepositoryPill = ({
 }) => (
   <div
     role='group'
-    aria-label={`${root.label} repository`}
+    aria-label={`${root.scopeLabel} repository`}
     className={cn(
       'flex h-9 max-w-56 shrink-0 items-stretch overflow-hidden rounded-full border shadow-xs',
       isSelected
@@ -232,19 +239,19 @@ const RepositoryPill = ({
     <button
       type='button'
       aria-pressed={isSelected}
-      title={root.exists ? root.path : `Folder unavailable · ${root.path}`}
+      title={root.scopeId}
       onClick={onSelect}
       className='rig-pressable flex min-w-0 items-center gap-2 py-1.5 pl-3 pr-2 text-sm font-medium hover:bg-muted/60 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
     >
       <Folder size={14} className='shrink-0' />
-      <span className='truncate'>{root.label}</span>
+      <span className='truncate'>{root.scopeLabel}</span>
     </button>
 
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type='button'
-          aria-label={`Options for ${root.label}`}
+          aria-label={`Options for ${root.scopeLabel}`}
           title='Repository options'
           className={cn(
             'rig-pressable flex w-8 shrink-0 items-center justify-center border-l hover:bg-muted/60 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
@@ -300,3 +307,10 @@ const RepositoryButton = ({
 );
 
 export { GLOBAL_REPOSITORY_ID };
+
+export const getImportedRepositoryId = (root: SkillRoot) => {
+  const match = root.id.match(
+    /^repo-(.+)-(agents|claude|opencode|hermes|cursor)$/,
+  );
+  return match?.[1] ?? root.id;
+};

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: TypeScript, tests, lint, and docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.6.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check desktop TypeScript
+        run: pnpm --filter desktop-app check-ts
+
+      - name: Test desktop app
+        run: pnpm --filter desktop-app test
+
+      - name: Lint desktop app
+        run: pnpm --filter desktop-app lint
+
+      - name: Build website
+        run: pnpm --filter docs build
+
+  rust:
+    name: Rust tests
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/rig/src-tauri -> target
+
+      - name: Test Tauri core
+        run: cargo test --manifest-path apps/rig/src-tauri/Cargo.toml

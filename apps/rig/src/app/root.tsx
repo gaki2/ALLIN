@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { SettingsDialog } from '@/features/plugins/components/SettingsDialog';
 import {
   GLOBAL_REPOSITORY_ID,
+  getImportedRepositoryId,
   RepositorySelector,
 } from '@/features/skills/components/RepositorySelector';
 import { SkillRoot } from '@/features/skills/components/SkillRoot';
@@ -26,15 +27,15 @@ export const Root = () => {
   });
   const importSkillRoot = useImportSkillRoot({
     onImported: importedRoot =>
-      repositorySelection.selectRepository(importedRoot.id),
+      repositorySelection.selectRepository(importedRoot.scopeId),
   });
   const removeSkillRoot = useRemoveSkillRoot();
   const removeRepository = async (root: SkillRootModel) => {
     const wasSelected =
-      repositorySelection.selectedRepositoryId === root.id;
+      repositorySelection.selectedRepositoryId === root.scopeId;
 
     try {
-      await removeSkillRoot.removeRoot(root.id);
+      await removeSkillRoot.removeRoot(getImportedRepositoryId(root));
       if (wasSelected) {
         repositorySelection.selectRepository(GLOBAL_REPOSITORY_ID);
       }
@@ -45,7 +46,7 @@ export const Root = () => {
           label: 'Undo',
           onClick: () => {
             void importSkillRoot
-              .importFromPath(root.path, wasSelected)
+              .importFromPath(root.scopeId, wasSelected)
               .then(() => {
                 toast.dismiss(removalToastId);
                 toast.success(`“${root.label}” restored`);

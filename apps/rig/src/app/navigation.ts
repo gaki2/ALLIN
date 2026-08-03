@@ -2,6 +2,8 @@ import { startTransition, useState } from 'react';
 
 export const appPaths = {
   skills: 'skills',
+  agents: 'agents',
+  apps: 'apps',
   dashboard: 'dashboard',
 } as const;
 

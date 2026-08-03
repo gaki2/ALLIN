@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Rig",
-  "version": "26.6.231",
+  "version": "26.8.31",
   "identifier": "sh.rig.app",
   "build": {
     "frontendDist": "../out",
@@ -12,7 +12,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://raw.githubusercontent.com/builder-mafia/rig/main/apps/rig/latest.json"
+        "https://github.com/builder-mafia/rig/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE1N0U2MkNEQ0Q1QzQwODkKUldTSlFGek56V0orcFdlV3kxMlNCZmQ3YjN2Uktzc2ZleGRkSVIyb1ZNcVBCSUNwaDloREY4aTQK"
     }

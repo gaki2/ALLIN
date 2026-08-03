@@ -6,8 +6,8 @@ import type { SkillRoot } from './types';
 export const useFetchSkills = (roots: SkillRoot[]) => {
   const skillQueries = useQueries({
     queries: roots.map(root => ({
-      queryKey: ['skills', root.path],
-      queryFn: () => Effect.runPromise(listSkills(root.path)),
+      queryKey: ['skills', root.id, root.path, root.exists],
+      queryFn: () => Effect.runPromise(listSkills(root)),
     })),
   });
 

@@ -20,7 +20,7 @@ export const useSkillRepositorySelection = ({
   });
   const selectedRepositoryId =
     storedRepositoryId === GLOBAL_REPOSITORY_ID ||
-    roots.some(root => root.id === storedRepositoryId)
+    roots.some(root => root.scopeId === storedRepositoryId)
       ? storedRepositoryId
       : GLOBAL_REPOSITORY_ID;
 
@@ -45,5 +45,5 @@ export const getVisibleRoots = (
     return roots;
   }
 
-  return roots.filter(root => root.id === selectedRepositoryId);
+  return roots.filter(root => root.scopeId === selectedRepositoryId);
 };

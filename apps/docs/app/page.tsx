@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 const latestReleaseUrl =
-  'https://raw.githubusercontent.com/builder-mafia/rig/main/apps/rig/latest.json';
+  'https://github.com/builder-mafia/rig/releases/latest/download/latest.json';
 const fallbackDownloadUrl =
   'https://github.com/builder-mafia/rig/releases/latest';
 

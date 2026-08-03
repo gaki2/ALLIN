@@ -17,7 +17,10 @@ export const useRemoveSkillRoot = ({
     onSuccess: (_, rootId) => {
       onRemoved?.(rootId);
       queryClient.setQueryData<SkillRoot[]>(skillRootsQueryKey, currentRoots =>
-        currentRoots?.filter(root => root.id !== rootId),
+        currentRoots?.filter(
+          root =>
+            !root.id.startsWith(`repo-${rootId}-`) && root.id !== rootId,
+        ),
       );
       void queryClient.invalidateQueries({ queryKey: skillRootsQueryKey });
       posthog.capture('repository_removed', { repository_id: rootId });

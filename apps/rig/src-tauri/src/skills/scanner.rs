@@ -4,18 +4,20 @@ use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
 use super::models::{
-    Skill, SkillListingError, SkillListingErrorCode, SkillValidationError, SkillValidationErrorCode,
+    Skill, SkillListingError, SkillListingErrorCode, SkillRoot, SkillValidationError,
+    SkillValidationErrorCode,
 };
 use super::parser::parse_skill_file_content;
 
 const IGNORED_DIRECTORY_NAMES: &[&str] = &[".archive", ".backups", ".git", "node_modules"];
 
-pub fn list_skills_from_root(root_path: &Path) -> Result<Vec<Skill>, SkillListingError> {
+pub fn list_skills_from_root(root: &SkillRoot) -> Result<Vec<Skill>, SkillListingError> {
+    let root_path = Path::new(root.path.as_str());
     let skill_files = collect_skill_files(root_path)?;
 
     Ok(skill_files
         .iter()
-        .map(|skill_file_path| build_skill_from_file(root_path, skill_file_path))
+        .map(|skill_file_path| build_skill_from_file(root, root_path, skill_file_path))
         .collect())
 }
 
@@ -50,7 +52,7 @@ fn is_skill_file(entry: &DirEntry) -> bool {
     entry.file_type().is_file() && entry.file_name() == "SKILL.md"
 }
 
-fn build_skill_from_file(root_path: &Path, skill_file_path: &Path) -> Skill {
+fn build_skill_from_file(root: &SkillRoot, root_path: &Path, skill_file_path: &Path) -> Skill {
     let skill_dir = skill_file_path.parent().unwrap_or(root_path);
     let relative_path = skill_dir
         .strip_prefix(root_path)
@@ -84,6 +86,12 @@ fn build_skill_from_file(root_path: &Path, skill_file_path: &Path) -> Skill {
                 validation_error: None,
                 updated_at,
                 is_archived: false,
+                provider: root.provider.clone(),
+                scope_id: root.scope_id.clone(),
+                scope_label: root.scope_label.clone(),
+                scope_kind: root.scope_kind.clone(),
+                root_id: root.id.clone(),
+                root_label: root.label.clone(),
             },
             Err(validation_error) => Skill {
                 id: relative_path.clone(),
@@ -96,6 +104,12 @@ fn build_skill_from_file(root_path: &Path, skill_file_path: &Path) -> Skill {
                 validation_error: Some(validation_error),
                 updated_at,
                 is_archived: false,
+                provider: root.provider.clone(),
+                scope_id: root.scope_id.clone(),
+                scope_label: root.scope_label.clone(),
+                scope_kind: root.scope_kind.clone(),
+                root_id: root.id.clone(),
+                root_label: root.label.clone(),
             },
         },
         Err(error) => Skill {
@@ -112,6 +126,12 @@ fn build_skill_from_file(root_path: &Path, skill_file_path: &Path) -> Skill {
             }),
             updated_at,
             is_archived: false,
+            provider: root.provider.clone(),
+            scope_id: root.scope_id.clone(),
+            scope_label: root.scope_label.clone(),
+            scope_kind: root.scope_kind.clone(),
+            root_id: root.id.clone(),
+            root_label: root.label.clone(),
         },
     }
 }
