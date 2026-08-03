@@ -810,54 +810,81 @@ const HomePage = async () => {
         </div>
       </section>
 
-      <section className='px-5 py-[clamp(7.5rem,10vw,10rem)] sm:px-8 lg:px-12'>
+      <section
+        id='capabilities'
+        className='scroll-mt-20 px-5 py-[clamp(7.5rem,10vw,10rem)] sm:px-8 lg:px-12'
+      >
         <div className='mx-auto max-w-[1180px]'>
-          <div className='grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:items-end'>
-            <SectionHeading
-              eyebrow='One control plane'
-              title='The five jobs that keep skills useful.'
-              body='Rig is built around the work a growing skill library creates: measuring usage, spanning providers, sharing proven skills, installing updates, and recovering earlier versions.'
-            />
-            <div className='grid gap-px overflow-hidden rounded-2xl border border-black/[0.1] bg-black/[0.08] dark:border-white/[0.1] dark:bg-white/[0.1] sm:grid-cols-2'>
-              {[
-                [
-                  'Track usage',
-                  'See when each skill was called and which connected agent called it.',
-                ],
-                [
-                  'Span providers',
-                  'Browse Claude Code, Codex, OpenCode, and project skills together.',
-                ],
-                [
-                  'Share skills',
-                  'Send an npx command or an AI-ready install prompt instead of a zip.',
-                ],
-                [
-                  'Install updates',
-                  'Check tracked remote sources and choose exactly when to update.',
-                ],
-                [
-                  'Restore versions',
-                  'Compare Rig-made snapshots and return to a version that worked.',
-                ],
-              ].map(([title, body], index) => (
-                <div
-                  key={title}
-                  className={`bg-white p-6 dark:bg-[#151619] ${index === 4 ? 'sm:col-span-2' : ''}`}
-                >
-                  <span className='text-[10px] font-medium tabular-nums text-[#5267f8] dark:text-[#9ca8ff]'>
-                    0{index + 1}
+          <header className='grid lg:grid-cols-12 lg:gap-x-8'>
+            <div className='max-w-[800px] lg:col-span-9 lg:col-start-3'>
+              <p className='text-sm font-semibold leading-5 text-[#5267f8] dark:text-[#9ca8ff]'>
+                What Rig helps you do
+              </p>
+              <h2 className='mt-4 text-[clamp(2.65rem,5.4vw,4.75rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-[#15161a] dark:text-white'>
+                <span className='block'>See what’s installed.</span>
+                <span className='block'>Know what’s used.</span>
+                <span className='block'>Keep it current.</span>
+              </h2>
+              <div className='mt-7 flex flex-wrap gap-2'>
+                {[
+                  ['Claude Code', 'claude'],
+                  ['Codex', 'codex'],
+                  ['OpenCode', 'opencode'],
+                ].map(([provider, source]) => (
+                  <span
+                    key={provider}
+                    className='inline-flex items-center gap-2 rounded-full border border-black/[0.09] bg-white px-3 py-1.5 text-xs font-medium text-[#5f6269] dark:border-white/[0.1] dark:bg-[#151619] dark:text-[#b0b2b8]'
+                  >
+                    <ProviderIcon source={source} size={13} />
+                    {provider}
                   </span>
-                  <h3 className='mt-7 text-lg font-semibold tracking-[-0.025em]'>
-                    {title}
-                  </h3>
-                  <p className='mt-3 text-sm leading-6 text-[#73767d] dark:text-[#9fa2a9]'>
-                    {body}
-                  </p>
-                </div>
-              ))}
+                ))}
+                <span className='inline-flex items-center rounded-full border border-black/[0.09] bg-white px-3 py-1.5 font-mono text-[11px] font-medium text-[#5f6269] dark:border-white/[0.1] dark:bg-[#151619] dark:text-[#b0b2b8]'>
+                  Project SKILL.md
+                </span>
+              </div>
             </div>
-          </div>
+          </header>
+
+          <ol className='mt-14 border-t border-black/[0.1] dark:border-white/[0.12] lg:mt-20'>
+            {[
+              [
+                'Usage tracking',
+                'See which skill ran, when it ran, and which agent called it.',
+              ],
+              [
+                'Claude, Codex & OpenCode',
+                'Browse agent and project skills without losing track of their source.',
+              ],
+              [
+                'Skill sharing',
+                'Copy an npx command or install prompt—no zip files.',
+              ],
+              [
+                'Skill updates',
+                'Find newer remote versions and update only when you choose.',
+              ],
+              [
+                'Version history',
+                'Compare Rig snapshots and restore the version that worked.',
+              ],
+            ].map(([title, body], index) => (
+              <li
+                key={title}
+                className='grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-4 gap-y-1.5 border-b border-black/[0.1] py-7 dark:border-white/[0.12] sm:grid-cols-[4.75rem_minmax(0,1fr)] lg:grid-cols-12 lg:items-center lg:gap-x-8 lg:py-9'
+              >
+                <span className='col-start-1 text-[2rem] font-medium leading-none tracking-[-0.06em] tabular-nums text-[#5267f8] dark:text-[#9ca8ff] sm:text-[2.5rem] lg:col-span-2 lg:text-[3rem]'>
+                  0{index + 1}
+                </span>
+                <h3 className='col-start-2 text-xl font-semibold leading-7 tracking-[-0.025em] lg:col-span-4 lg:col-start-3 lg:text-[1.375rem]'>
+                  {title}
+                </h3>
+                <p className='col-start-2 max-w-[54ch] text-[15px] leading-6 text-[#5f6269] dark:text-[#b0b2b8] lg:col-span-6 lg:col-start-7 lg:text-base lg:leading-7'>
+                  {body}
+                </p>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
