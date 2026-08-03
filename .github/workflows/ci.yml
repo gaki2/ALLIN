@@ -32,6 +32,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build workspace packages
+        run: |
+          pnpm --filter @allin/ui build
+          pnpm --filter @allin/utils build
+
       - name: Check desktop TypeScript
         run: pnpm --filter desktop-app check-ts
 
