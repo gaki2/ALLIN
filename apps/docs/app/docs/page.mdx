@@ -1,8 +1,11 @@
 # Rig Documentation
 
-Rig is a local-first desktop app for organizing scattered agent `SKILL.md` files before they become a mess.
+Rig is a local desktop workspace for the `SKILL.md` files used by Claude Code,
+Codex, OpenCode, and your projects.
 
-It gives you one place to browse local skills, inspect their content, import project-specific skill roots, and understand which skills are actually being used by your agent tools.
+Use it to see which skills your agents actually use, inspect every instruction,
+share skills without packaging zip files, update remote skills, and restore
+versions saved by Rig.
 
 ## What Rig Tracks
 
@@ -19,15 +22,13 @@ Skill instructions live here.
 
 ## Features
 
-- **Global skill discovery**: Browse skills from `~/.agents/skills`, `~/.config/opencode/skills`, and `~/.claude/skills`
-- **Repository imports**: Add any local folder as a project-specific skill root
-- **Skill inspection**: Read skill names, descriptions, validation state, paths, and markdown content
-- **Usage analytics**: Review total fires, active skills, least-used skills, and usage trends from local logs
-- **Agent integrations**: Record usage from OpenCode and Claude Code with Rig plugins
+- **Usage tracking**: Record skill names, providers, and timestamps through local agent integrations
+- **Multiple providers**: Browse skills from Claude Code, Codex, OpenCode, and project folders together
+- **Simple sharing**: Copy an `npx skills` command or an AI-ready install prompt
+- **Safe updates**: Check tracked remote skills and choose when to install an update
+- **Rig version history**: Compare and restore snapshots created during Rig updates and restores
 
 ## Quick Links
 
-- [Quick Start](/docs/getting-started) - Install Rig and learn the basic workflow
-- [Skill Roots](/docs/skill-roots) - Understand default and imported roots
-- [Usage Tracking](/docs/usage-tracking) - Learn how usage data is recorded and displayed
-- [Plugins](/docs/plugins) - Connect OpenCode and Claude Code
+- [Usage Tracking](/docs/usage-tracking) - Understand tracking, install an integration, and verify it
+- [Skill Roots](/docs/skill-roots) - Understand provider folders and added projects

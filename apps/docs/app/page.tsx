@@ -1,16 +1,21 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
+import claudeIcon from '../../rig/public/application_icon/claude-ai.svg';
+import codexIcon from '../../rig/public/application_icon/openai.webp';
+import openCodeDarkIcon from '../../rig/public/application_icon/opencode-dark.webp';
+import openCodeLightIcon from '../../rig/public/application_icon/opencode-light.webp';
+import appIcon from '../../rig/src-tauri/icons/icon.png';
 
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: 'Rig — Manage and track agent skills locally',
+  title: 'Rig — Know which agent skills actually get used',
   description:
-    'Find, inspect, update, share, and track the SKILL.md files used by Claude Code, Codex, OpenCode, and your projects—all from one local desktop workspace.',
+    'Track skill usage across Claude Code, Codex, and OpenCode. Share, update, compare, and restore every SKILL.md from one local desktop workspace.',
   openGraph: {
-    title: 'One place for every skill your coding agents use.',
+    title: 'Know which agent skills actually get used.',
     description:
-      'A local workspace for discovering, maintaining, and tracking agent skills.',
+      'Track usage across agents, share skills, update safely, and restore local versions.',
     type: 'website',
   },
 };
@@ -61,6 +66,7 @@ const skillRows = [
     name: 'accessibility',
     description: 'Audit and improve web accessibility…',
     provider: 'Codex',
+    source: 'codex',
     meta: '~3.2K tokens',
     selected: true,
   },
@@ -68,12 +74,14 @@ const skillRows = [
     name: 'agent-browser',
     description: 'Browser automation for AI agents…',
     provider: 'Claude Code',
+    source: 'claude',
     meta: '~579 tokens',
   },
   {
     name: 'vercel-react-best-practices',
     description: 'React and Next.js performance…',
     provider: 'Codex',
+    source: 'codex',
     meta: '~1.7K tokens',
     update: true,
   },
@@ -81,6 +89,7 @@ const skillRows = [
     name: 'review-animations',
     description: 'Review motion against a high craft bar…',
     provider: 'OpenCode',
+    source: 'opencode',
     meta: '~2.1K tokens',
   },
 ];
@@ -88,24 +97,59 @@ const skillRows = [
 const providerRows = [
   {
     name: 'Claude Code',
-    mark: 'C',
+    source: 'claude',
     description: 'Native skill-call tracking with the Rig plugin.',
     action: 'Copy Claude Code setup',
   },
   {
     name: 'Codex',
-    mark: '◎',
+    source: 'codex',
     description: 'Track explicit $skill mentions with a local hook.',
     action: 'Copy Codex setup',
     badge: 'Explicit tracking · Beta',
   },
   {
     name: 'OpenCode',
-    mark: 'O',
+    source: 'opencode',
     description: 'Track native skill tool calls with the Rig plugin.',
     action: 'Copy OpenCode setup',
   },
 ];
+
+const ProviderIcon = ({
+  source,
+  size = 18,
+}: {
+  source: string;
+  size?: number;
+}) => {
+  if (source === 'claude') {
+    return <Image src={claudeIcon} alt='' width={size} height={size} />;
+  }
+
+  if (source === 'opencode') {
+    return (
+      <>
+        <Image
+          src={openCodeLightIcon}
+          alt=''
+          width={size}
+          height={size}
+          className='dark:hidden'
+        />
+        <Image
+          src={openCodeDarkIcon}
+          alt=''
+          width={size}
+          height={size}
+          className='hidden dark:block'
+        />
+      </>
+    );
+  }
+
+  return <Image src={codexIcon} alt='' width={size} height={size} />;
+};
 
 const DownloadButton = ({
   downloadUrl,
@@ -199,7 +243,10 @@ const SkillRow = ({ skill }: { skill: (typeof skillRows)[number] }) => (
         {skill.description}
       </p>
       <p className='mt-1 truncate text-[8px] text-[#92959c] dark:text-[#858891]'>
-        {skill.provider} · {skill.meta}
+        <span className='inline-flex items-center gap-1.5'>
+          <ProviderIcon source={skill.source} size={10} />
+          {skill.provider} · {skill.meta}
+        </span>
       </p>
     </div>
     <span className='text-[9px] tabular-nums text-[#888b92]'>0×</span>
@@ -279,7 +326,8 @@ const ProductWindow = () => (
                 <h3 className='text-lg font-semibold tracking-[-0.025em] text-[#1c1d21] dark:text-white'>
                   accessibility
                 </h3>
-                <span className='rounded-full bg-[#eef0ff] px-2 py-0.5 text-[9px] font-medium text-[#4558dd] dark:bg-[#5267f8]/20 dark:text-[#b9c1ff]'>
+                <span className='inline-flex items-center gap-1.5 rounded-full bg-[#eef0ff] px-2 py-0.5 text-[9px] font-medium text-[#4558dd] dark:bg-[#5267f8]/20 dark:text-[#b9c1ff]'>
+                  <ProviderIcon source='codex' size={10} />
                   Codex
                 </span>
               </div>
@@ -296,13 +344,13 @@ const ProductWindow = () => (
             </span>
           </div>
           <div className='mt-4 flex items-center gap-1 text-[9px]'>
-            <span className='rounded-lg bg-[#17181b] px-3 py-1.5 font-medium text-white dark:bg-white dark:text-[#16171a]'>
+            <span className='px-3 py-1.5 text-[#73767d] dark:text-[#999ca3]'>
               Instructions
             </span>
             <span className='px-3 py-1.5 text-[#73767d] dark:text-[#999ca3]'>
               Source
             </span>
-            <span className='px-3 py-1.5 text-[#73767d] dark:text-[#999ca3]'>
+            <span className='rounded-lg bg-[#17181b] px-3 py-1.5 font-medium text-white dark:bg-white dark:text-[#16171a]'>
               Activity
             </span>
             <span className='px-3 py-1.5 text-[#73767d] dark:text-[#999ca3]'>
@@ -310,45 +358,68 @@ const ProductWindow = () => (
             </span>
           </div>
         </div>
-        <div className='mx-auto max-w-3xl px-8 py-7 text-[#27282d] dark:text-[#e7e7ea]'>
-          <p className='text-[10px] font-medium uppercase tracking-[0.08em] text-[#5267f8] dark:text-[#9eabff]'>
-            WCAG 2.2
-          </p>
-          <h4 className='mt-2 text-2xl font-semibold tracking-[-0.03em]'>
-            Accessible by default.
-          </h4>
-          <p className='mt-3 max-w-xl text-[11px] leading-5 text-[#6e7178] dark:text-[#a2a5ac]'>
-            Review semantic structure, keyboard access, focus behavior,
-            contrast, and motion preferences before shipping.
-          </p>
-          <div className='mt-6 grid grid-cols-2 gap-3'>
-            {['Perceivable', 'Operable', 'Understandable', 'Robust'].map(
-              (principle, index) => (
-                <div
-                  key={principle}
-                  className='rounded-xl border border-black/[0.08] p-3 dark:border-white/[0.09]'
-                >
-                  <span className='text-[9px] text-[#90939a]'>
-                    0{index + 1}
-                  </span>
-                  <p className='mt-1 text-[11px] font-medium'>{principle}</p>
-                </div>
-              ),
-            )}
+        <div className='mx-auto max-w-3xl px-8 py-7 text-left text-[#27282d] dark:text-[#e7e7ea]'>
+          <div className='flex items-start justify-between gap-4'>
+            <div>
+              <p className='text-[10px] font-medium uppercase tracking-[0.08em] text-[#5267f8] dark:text-[#9eabff]'>
+                Last 7 days
+              </p>
+              <h4 className='mt-2 text-2xl font-semibold tracking-[-0.03em]'>
+                12 uses
+              </h4>
+            </div>
+            <span className='rounded-full bg-[#edf8f0] px-2.5 py-1 text-[9px] font-medium text-[#34704a] dark:bg-[#34704a]/15 dark:text-[#86c79c]'>
+              Tracking connected
+            </span>
           </div>
-          <div className='mt-5 rounded-xl bg-[#202126] p-4 font-mono text-[9px] leading-5 text-[#d7d9df]'>
-            <span className='text-[#8f9eff]'>check</span> semantic HTML,
-            keyboard flow, visible focus
-            <br />
-            <span className='text-[#79c99e]'>pass</span> reduced motion and
-            contrast preferences
+          <svg
+            viewBox='0 0 600 130'
+            className='mt-5 h-32 w-full'
+            role='img'
+            aria-label='Usage activity over seven days'
+          >
+            <path
+              d='M2 112 C62 109, 88 82, 142 91 S236 105, 288 67 S378 39, 428 70 S520 83, 598 20'
+              fill='none'
+              stroke='#5267f8'
+              strokeWidth='3'
+              strokeLinecap='round'
+            />
+            {[112, 82, 52, 22].map(y => (
+              <line
+                key={y}
+                x1='0'
+                x2='600'
+                y1={y}
+                y2={y}
+                stroke='currentColor'
+                opacity='.07'
+              />
+            ))}
+          </svg>
+          <div className='mt-3 overflow-hidden rounded-xl border border-black/[0.08] dark:border-white/[0.09]'>
+            {[
+              ['Codex', 'Explicit mention', 'Today, 14:32', 'codex'],
+              ['Claude Code', 'Skill call', 'Yesterday, 16:08', 'claude'],
+              ['OpenCode', 'Skill call', 'Aug 1, 09:41', 'opencode'],
+            ].map(([provider, event, time, source]) => (
+              <div
+                key={`${provider}-${time}`}
+                className='flex items-center gap-2.5 border-b border-black/[0.06] px-3 py-2.5 text-[10px] last:border-b-0 dark:border-white/[0.07]'
+              >
+                <ProviderIcon source={source} size={13} />
+                <span className='font-medium'>{provider}</span>
+                <span className='text-[#85888f]'>{event}</span>
+                <span className='ml-auto text-[#85888f]'>{time}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </div>
     <figcaption className='sr-only'>
-      Rig Library showing provider-aware skills, update status, and the selected
-      skill instructions.
+      Rig Library showing provider-aware skills, update status, and local usage
+      activity for the selected skill.
     </figcaption>
   </figure>
 );
@@ -444,22 +515,26 @@ const HealthVisual = () => (
     <div className='rounded-xl border border-black/[0.08] bg-white p-4 dark:border-white/[0.08] dark:bg-[#111214]'>
       <div className='flex items-start justify-between gap-4'>
         <div>
-          <p className='text-sm font-semibold'>Needs review</p>
+          <p className='text-sm font-semibold'>Available updates</p>
           <p className='mt-1 text-[10px] text-[#7d8087] dark:text-[#999ca3]'>
-            Only issues that deserve a decision.
+            Checked against each tracked remote source.
           </p>
         </div>
         <span className='rounded-full bg-[#fff4de] px-2 py-1 text-[9px] font-medium text-[#9d5f12] dark:bg-[#b86a12]/15 dark:text-[#e4a95e]'>
-          2 items
+          9 updates
         </span>
       </div>
       <div className='mt-4 space-y-2'>
         {[
-          ['effect-ts', 'Duplicate name', 'Found in Codex and Claude Code'],
           [
-            'large-context-guide',
-            'Large instructions',
-            '~18.4K estimated tokens',
+            'effect-ts',
+            'Update available',
+            'Local changes preserved until you approve',
+          ],
+          [
+            'vercel-react-best-practices',
+            'Update available',
+            'New version found in the tracked repository',
           ],
         ].map(([name, status, description]) => (
           <div
@@ -467,7 +542,7 @@ const HealthVisual = () => (
             className='flex items-center gap-3 rounded-xl border border-black/[0.07] p-3 dark:border-white/[0.08]'
           >
             <span className='grid size-8 shrink-0 place-items-center rounded-lg bg-[#fff4de] text-[#a46312] dark:bg-[#b86a12]/15 dark:text-[#e4a95e]'>
-              !
+              ↑
             </span>
             <div className='min-w-0 flex-1'>
               <div className='flex flex-wrap items-center gap-2'>
@@ -481,7 +556,7 @@ const HealthVisual = () => (
               </p>
             </div>
             <span className='text-[10px] font-medium text-[#676a71] dark:text-[#a5a8af]'>
-              Review
+              Preview
             </span>
           </div>
         ))}
@@ -489,22 +564,22 @@ const HealthVisual = () => (
     </div>
     <div className='mt-3 grid gap-3 sm:grid-cols-2'>
       <div className='rounded-xl border border-black/[0.08] bg-white p-4 dark:border-white/[0.08] dark:bg-[#111214]'>
-        <p className='text-[10px] text-[#85888f]'>Disable, don’t delete</p>
-        <p className='mt-2 text-sm font-semibold'>Kept safely on disk</p>
+        <p className='text-[10px] text-[#85888f]'>Bulk maintenance</p>
+        <p className='mt-2 text-sm font-semibold'>Update selected skills</p>
         <div className='mt-4 flex items-center justify-between rounded-lg bg-[#f3f3f0] px-3 py-2 text-[10px] dark:bg-[#1c1d21]'>
-          <span className='text-[#777a82]'>legacy-reviewer</span>
-          <span className='font-medium'>Enable again</span>
+          <span className='text-[#777a82]'>3 skills selected</span>
+          <span className='font-medium'>Update all</span>
         </div>
       </div>
       <div className='rounded-xl border border-black/[0.08] bg-white p-4 dark:border-white/[0.08] dark:bg-[#111214]'>
-        <p className='text-[10px] text-[#85888f]'>Provider visibility</p>
-        <p className='mt-2 text-sm font-semibold'>Hide duplicate roots</p>
+        <p className='text-[10px] text-[#85888f]'>Before anything changes</p>
+        <p className='mt-2 text-sm font-semibold'>Preview the source</p>
         <div className='mt-4 flex items-center gap-2'>
           <span className='rounded-full bg-[#17181b] px-2.5 py-1.5 text-[9px] text-white dark:bg-white dark:text-[#17181b]'>
-            Codex
+            Current
           </span>
           <span className='rounded-full border border-black/[0.08] px-2.5 py-1.5 text-[9px] text-[#777a82] line-through dark:border-white/[0.1]'>
-            Claude Code
+            Remote
           </span>
         </div>
       </div>
@@ -676,21 +751,17 @@ const HomePage = async () => {
       <section className='rig-grid-background border-b border-black/[0.07] px-5 pb-20 pt-[clamp(5rem,9vw,8rem)] dark:border-white/[0.08] sm:px-8 lg:px-12'>
         <div className='mx-auto max-w-[1280px] text-center'>
           <p className='text-xs font-semibold tracking-[0.08em] text-[#5267f8] dark:text-[#9ca8ff]'>
-            The local workspace for agent skills
+            Usage tracking for agent skills
           </p>
           <h1 className='mx-auto mt-6 max-w-5xl text-[clamp(3.25rem,7.2vw,5.75rem)] font-semibold leading-[0.96] tracking-[-0.055em] text-[#121316] dark:text-white'>
-            Every agent skill.
+            Know which skills
             <br />
-            One local home.
+            your agents actually use.
           </h1>
           <p className='mx-auto mt-7 max-w-3xl text-[clamp(1.0625rem,1.5vw,1.25rem)] leading-8 text-[#666970] dark:text-[#a5a8af]'>
-            Rig finds{' '}
-            <code className='rounded bg-black/[0.045] px-1.5 py-0.5 font-mono text-[0.9em] text-[#34353a] dark:bg-white/[0.08] dark:text-[#dddde1]'>
-              SKILL.md
-            </code>{' '}
-            files across Claude Code, Codex, OpenCode, and your projects.
-            Inspect instructions, reduce context noise, update safely, and see
-            what agents actually use.
+            Connect Claude Code, Codex, and OpenCode to one local skill
+            workspace. Track usage, share what works, update remote skills, and
+            restore a version when you need it.
           </p>
           <div className='mt-9 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center'>
             <DownloadButton downloadUrl={downloadUrl} />
@@ -698,7 +769,7 @@ const HomePage = async () => {
               href='#product'
               className='rig-pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/[0.12] bg-white/70 px-5 text-sm font-semibold text-[#292a2f] transition-[background-color,transform] duration-150 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5267f8] focus-visible:ring-offset-2 dark:border-white/[0.13] dark:bg-white/[0.06] dark:text-white dark:hover:bg-white/[0.1] dark:focus-visible:ring-offset-[#0d0e10]'
             >
-              See how Rig works <ArrowIcon />
+              See usage tracking <ArrowIcon />
             </a>
           </div>
           <p className='mt-4 text-xs text-[#85888f] dark:text-[#8d9098]'>
@@ -716,57 +787,64 @@ const HomePage = async () => {
         <div className='mx-auto flex max-w-[1180px] flex-col items-center justify-between gap-5 py-7 md:flex-row'>
           <div>
             <p className='text-center text-sm font-medium md:text-left'>
-              Works with the skills you already have
+              One view across the agents you actually use
             </p>
             <p className='mt-1 text-center text-xs text-[#85888f] md:text-left'>
-              Reads existing skill folders. No migration required.
+              Connect one provider or all three. Your files stay in place.
             </p>
           </div>
           <div className='flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm font-medium text-[#5e6168] dark:text-[#b5b7bd]'>
-            {['Claude Code', 'Codex', 'OpenCode', 'Project folders'].map(
-              (provider, index) => (
-                <span key={provider} className='flex items-center gap-2'>
-                  <span className='grid size-7 place-items-center rounded-lg border border-black/[0.09] bg-white text-[10px] font-semibold text-[#35363b] dark:border-white/[0.1] dark:bg-[#17181b] dark:text-white'>
-                    {index === 0
-                      ? 'C'
-                      : index === 1
-                        ? '◎'
-                        : index === 2
-                          ? 'O'
-                          : '▱'}
-                  </span>
-                  {provider}
+            {[
+              ['Claude Code', 'claude'],
+              ['Codex', 'codex'],
+              ['OpenCode', 'opencode'],
+            ].map(([provider, source]) => (
+              <span key={provider} className='flex items-center gap-2'>
+                <span className='grid size-8 place-items-center rounded-lg border border-black/[0.09] bg-white dark:border-white/[0.1] dark:bg-[#17181b]'>
+                  <ProviderIcon source={source} size={17} />
                 </span>
-              ),
-            )}
+                {provider}
+              </span>
+            ))}
           </div>
         </div>
       </section>
 
       <section className='px-5 py-[clamp(7.5rem,10vw,10rem)] sm:px-8 lg:px-12'>
         <div className='mx-auto max-w-[1180px]'>
-          <div className='grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:items-end'>
+          <div className='grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:items-end'>
             <SectionHeading
-              eyebrow='Why Rig'
-              title='Skills multiply. Context doesn’t.'
-              body='A skill folder starts simple. Then the same instructions spread across agents, projects, and remote sources. Rig gives that system an inventory—and gives every change a way back.'
+              eyebrow='One control plane'
+              title='The five jobs that keep skills useful.'
+              body='Rig is built around the work a growing skill library creates: measuring usage, spanning providers, sharing proven skills, installing updates, and recovering earlier versions.'
             />
-            <div className='grid gap-px overflow-hidden rounded-2xl border border-black/[0.1] bg-black/[0.08] dark:border-white/[0.1] dark:bg-white/[0.1] sm:grid-cols-3'>
+            <div className='grid gap-px overflow-hidden rounded-2xl border border-black/[0.1] bg-black/[0.08] dark:border-white/[0.1] dark:bg-white/[0.1] sm:grid-cols-2'>
               {[
                 [
-                  'Discover automatically',
-                  'Open Rig and see the standard skill folders your agents already use.',
+                  'Track usage',
+                  'See when each skill was called and which connected agent called it.',
                 ],
                 [
-                  'Keep context intentional',
-                  'Find duplicates, hide provider roots, and disable noise without deleting files.',
+                  'Span providers',
+                  'Browse Claude Code, Codex, OpenCode, and project skills together.',
                 ],
                 [
-                  'Change without fear',
-                  'Preview updates, keep Rig-made history, and restore a version that worked.',
+                  'Share skills',
+                  'Send an npx command or an AI-ready install prompt instead of a zip.',
+                ],
+                [
+                  'Install updates',
+                  'Check tracked remote sources and choose exactly when to update.',
+                ],
+                [
+                  'Restore versions',
+                  'Compare Rig-made snapshots and return to a version that worked.',
                 ],
               ].map(([title, body], index) => (
-                <div key={title} className='bg-white p-6 dark:bg-[#151619]'>
+                <div
+                  key={title}
+                  className={`bg-white p-6 dark:bg-[#151619] ${index === 4 ? 'sm:col-span-2' : ''}`}
+                >
                   <span className='text-[10px] font-medium tabular-nums text-[#5267f8] dark:text-[#9ca8ff]'>
                     0{index + 1}
                   </span>
@@ -790,15 +868,15 @@ const HomePage = async () => {
         <div className='mx-auto grid max-w-[1180px] items-center gap-14 lg:grid-cols-12 lg:gap-8'>
           <div className='lg:col-span-5'>
             <SectionHeading
-              eyebrow='01 · Discover'
-              title='Your skill system, finally visible.'
-              body='Search every instruction, compare duplicate copies, and see where each skill comes from—without importing files into a cloud dashboard.'
+              eyebrow='01 · Multiple providers'
+              title='Claude, Codex, OpenCode. One skill view.'
+              body='Rig reads the provider folders already on your Mac and keeps each copy identifiable by icon, source, and exact path. Add a project only when you want its local skills in view.'
             />
             <ul className='mt-8 space-y-3 text-sm text-[#5f6269] dark:text-[#b0b2b8]'>
               {[
-                'Global and project roots',
-                'Provider-aware discovery',
-                'Full instructions and file paths',
+                'Provider icons on every skill',
+                'Global and project folders',
+                'Full instructions and exact file paths',
               ].map(point => (
                 <li key={point} className='flex items-center gap-3'>
                   <span className='text-[#5267f8]'>
@@ -819,13 +897,13 @@ const HomePage = async () => {
         <div className='mx-auto grid max-w-[1180px] items-center gap-14 lg:grid-cols-12 lg:gap-8'>
           <div className='lg:order-2 lg:col-span-5 lg:pl-8'>
             <SectionHeading
-              eyebrow='02 · Focus'
-              title='Use fewer skills, on purpose.'
-              body='Find invalid, duplicate, and oversized instructions. Disable noise without deleting the files your agents depend on, or hide a provider root when copies overlap.'
+              eyebrow='02 · Skill updates'
+              title='See what changed before you update.'
+              body='Rig checks skills with a tracked remote source, shows which ones have newer versions, and lets you update one skill or a selection when you are ready.'
             />
             <p className='mt-7 border-l-2 border-[#5267f8]/35 pl-4 text-sm leading-6 text-[#73767d] dark:text-[#9fa2a9]'>
-              Disabling moves a skill out of active discovery. It does not
-              permanently delete the file.
+              An update is never installed just because Rig found it. You keep
+              the decision—and Rig saves a recovery version around the change.
             </p>
           </div>
           <div className='lg:order-1 lg:col-span-7'>
@@ -839,9 +917,9 @@ const HomePage = async () => {
           <div className='grid items-end gap-8 lg:grid-cols-[1fr_0.75fr]'>
             <SectionHeading
               inverse
-              eyebrow='03 · Change safely'
-              title='Update without losing the version that worked.'
-              body='For skills with a tracked source, Rig checks for newer files without changing your local copy. When you update in Rig, recovery versions are saved before and after the change.'
+              eyebrow='03 · Version history'
+              title='Every Rig-made change has a way back.'
+              body='When Rig updates or restores a skill, it saves recoverable versions before and after the change. Compare the markdown diff, then restore the snapshot you trust.'
             />
             <p className='text-sm leading-6 text-white/50 lg:pb-1'>
               History covers updates and restores performed in Rig. External
@@ -858,9 +936,9 @@ const HomePage = async () => {
         <div className='mx-auto grid max-w-[1180px] items-center gap-14 lg:grid-cols-12 lg:gap-8'>
           <div className='lg:col-span-5'>
             <SectionHeading
-              eyebrow='04 · Learn and share'
+              eyebrow='04 · Usage tracking and sharing'
               title='Know what runs. Share what works.'
-              body='When usage tracking is enabled, Rig records local skill activity from supported agents. Then hand off the useful skills as an npx command or an AI-ready install prompt—not a zip file.'
+              body='Connected agents append local skill activity that Rig shows by provider and time. When a skill proves useful, share it as an npx command or an AI-ready install prompt—not a zip file.'
             />
             <p className='mt-7 text-sm leading-6 text-[#73767d] dark:text-[#9fa2a9]'>
               Install prompts include the current{' '}
@@ -901,13 +979,13 @@ const HomePage = async () => {
               </div>
               <div className='my-5 flex items-center gap-3'>
                 <span className='h-px flex-1 bg-black/[0.08] dark:bg-white/[0.1]' />
-                <span className='grid size-11 place-items-center rounded-xl bg-[#17181b] text-sm font-semibold text-white dark:bg-white dark:text-[#15161a]'>
-                  Rig
+                <span className='grid size-12 place-items-center overflow-hidden rounded-xl shadow-sm'>
+                  <Image src={appIcon} alt='Rig' width={48} height={48} />
                 </span>
                 <span className='h-px flex-1 bg-black/[0.08] dark:bg-white/[0.1]' />
               </div>
               <div className='grid grid-cols-3 gap-2 text-center text-[10px]'>
-                {['Library', 'Health', 'History'].map(item => (
+                {['Activity', 'Updates', 'History'].map(item => (
                   <span
                     key={item}
                     className='rounded-lg bg-[#f3f3f0] px-2 py-2.5 font-medium dark:bg-[#202125]'
@@ -951,9 +1029,9 @@ const HomePage = async () => {
         <div className='mx-auto max-w-[1180px]'>
           <div className='mx-auto max-w-2xl text-center'>
             <SectionHeading
-              eyebrow='Connections'
-              title='One library across the agents you use.'
-              body='Set up only the agents you use. Discovery works without a tracking connection; connections add local activity data.'
+              eyebrow='05 · Agent connections'
+              title='Install tracking without leaving the agent.'
+              body='Rig gives you one setup prompt per provider. Paste it into the matching agent, review the requested changes, then verify the first call in Activity.'
             />
           </div>
           <div className='mt-12 grid gap-4 lg:grid-cols-3'>
@@ -963,8 +1041,8 @@ const HomePage = async () => {
                 className='flex min-h-64 flex-col rounded-2xl border border-black/[0.1] bg-[#f8f8f6] p-6 dark:border-white/[0.1] dark:bg-[#17181b]'
               >
                 <div className='flex items-start justify-between gap-3'>
-                  <span className='grid size-11 place-items-center rounded-xl border border-black/[0.09] bg-white text-sm font-semibold shadow-sm dark:border-white/[0.1] dark:bg-[#111214]'>
-                    {provider.mark}
+                  <span className='grid size-11 place-items-center rounded-xl border border-black/[0.09] bg-white shadow-sm dark:border-white/[0.1] dark:bg-[#111214]'>
+                    <ProviderIcon source={provider.source} size={22} />
                   </span>
                   {provider.badge ? (
                     <span className='rounded-full bg-[#eef0ff] px-2 py-1 text-[9px] font-medium text-[#4558dd] dark:bg-[#5267f8]/20 dark:text-[#bdc5ff]'>
@@ -1038,11 +1116,11 @@ const HomePage = async () => {
             Ready when you are
           </p>
           <h2 className='mx-auto mt-5 max-w-3xl text-[clamp(2.5rem,5vw,4.25rem)] font-semibold leading-[1] tracking-[-0.05em]'>
-            Bring your skill library back under control.
+            Make every skill earn its context.
           </h2>
           <p className='mx-auto mt-6 max-w-xl text-base leading-7 text-[#73767d] dark:text-[#9fa2a9]'>
-            Bring every local skill into view, keep it current, and learn which
-            instructions are earning their place.
+            Track what your agents use, share the skills that work, and update
+            the library without losing a trusted version.
           </p>
           <div className='mt-8 flex flex-col justify-center gap-3 sm:flex-row'>
             <DownloadButton
@@ -1050,10 +1128,10 @@ const HomePage = async () => {
               label='Download Rig for macOS'
             />
             <a
-              href='/docs/getting-started'
+              href='/docs/usage-tracking'
               className='rig-pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/[0.12] bg-white px-5 text-sm font-semibold transition-transform duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5267f8] dark:border-white/[0.13] dark:bg-white/[0.06]'
             >
-              Read the Quick Start <ArrowIcon />
+              Set up usage tracking <ArrowIcon />
             </a>
           </div>
           <p className='mt-4 text-xs text-[#85888f]'>

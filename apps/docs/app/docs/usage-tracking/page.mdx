@@ -1,16 +1,78 @@
 # Usage Tracking
 
-Rig tracks how often each agent skill fires by reading local JSONL events.
+Rig can show when a discovered skill was used, which supported agent used it,
+and its recent activity. Tracking stays on your Mac and is off until you set up
+an integration for an agent.
 
-## Log Location
+## How tracking works
 
-By default, Rig reads usage events from:
+1. An agent integration observes a supported skill invocation.
+2. It appends the skill name, agent source, and timestamp to
+   `~/.rig/usage.jsonl`.
+3. Rig matches that name to discovered skills and shows the event in the
+   skill's **Activity** tab.
 
-```txt
-~/.rig/usage.jsonl
+Prompt text and skill contents are not written to the usage log.
+
+## Install an integration
+
+Set up only the agents you use. You can also open **Rig → Settings → Agents**,
+copy the matching setup prompt, and paste it into that agent.
+
+### Claude Code
+
+Run these commands inside Claude Code:
+
+```text
+/plugin marketplace add builder-mafia/rig
+/plugin install rig-claude-code@rig
+/reload-plugins
 ```
 
-Each line should be one JSON object:
+Confirm the Rig plugin appears in `/plugin list`. Claude Code skill calls can
+then appear in Rig Activity.
+
+### Codex — explicit tracking beta
+
+Run these commands in a terminal:
+
+```sh
+codex plugin marketplace add builder-mafia/rig
+codex plugin add rig-codex@rig
+```
+
+Start a new Codex session, run `/hooks`, then review and trust Rig's
+`UserPromptSubmit` hook. Do not bypass the hook trust prompt.
+
+Codex currently records only explicit mentions such as `$skill-creator`. It
+cannot reliably detect implicit skill activation. When installed skills share
+the same name, Codex does not expose the selected file path to this hook, so Rig
+can attribute the event only by name.
+
+### OpenCode
+
+Add `rig-opencode` to the existing `plugin` array in
+`~/.config/opencode/opencode.json` or `opencode.jsonc`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["rig-opencode"]
+}
+```
+
+Preserve your other settings and plugins, then restart OpenCode. OpenCode
+installs npm plugins automatically at startup.
+
+## Verify tracking
+
+1. Restart or reload the agent after installation.
+2. Invoke a known skill. For Codex, mention it explicitly with `$skill-name`.
+3. Open Rig, choose that skill, and open **Activity**.
+4. If no event appears, inspect the last lines of `~/.rig/usage.jsonl` and
+   confirm that the recorded `skillName` matches the discovered skill name.
+
+Each line is one JSON event:
 
 ```json
 {"source":"opencode","skillName":"typescript-fix-null-safety","usedAt":"2026-05-30T01:12:00.000Z"}
@@ -18,29 +80,31 @@ Each line should be one JSON object:
 
 Rig ignores empty lines and malformed events.
 
-## Dashboard Metrics
+## What Rig stores
 
-The `Dashboard` view shows usage for the selected repository context.
+| Field | Purpose |
+| --- | --- |
+| `source` | Identifies the agent integration. |
+| `skillName` | Matches an event to discovered skills. |
+| `usedAt` | Records when the invocation happened as an RFC 3339 timestamp. |
 
-- **Total fires**: Sum of all matching usage events in the selected window
-- **Active skills**: Skills with at least one usage event in the selected window
-- **Tracked skills**: Skills discovered from the current roots
-- **Unused**: Skills with no usage in the selected window
-- **Most used skills**: Highest-count skills for the selected window
-- **Least used skills**: Skills with five fires or fewer, useful for cleanup reviews
+Codex explicit events can also include `trackingMode`, `sessionId`, and `cwd`
+for local attribution and diagnostics. They do not include prompt text or skill
+contents.
 
-## Time Windows
+## OpenCode options
 
-Use the dashboard filters to switch between:
+The OpenCode integration works without environment variables. Use these only
+when you need to customize recording.
 
-- 7 days
-- 30 days
-- 3 months
-- 1 year
-- All time
+| Name | Default | Description |
+| --- | --- | --- |
+| `RIG_USAGE_LOG_PATH` | `~/.rig/usage.jsonl` | JSONL file to append events to. |
+| `RIG_USAGE_SOURCE` | `opencode` | Source written into each event. |
+| `RIG_USAGE_DISABLED` | unset | Set to `1` or `true` to stop recording. |
 
-The Skills sidebar also shows per-skill counts and a small usage trend so you can see activity without leaving the skill browser.
-
-## How Events Are Matched
-
-Rig matches usage events by `skillName`. If a usage event name matches a discovered skill name, it is included in repository-specific dashboard summaries. If no skills are discovered for a context, Rig can still show raw usage events from the log.
+```bash
+RIG_USAGE_LOG_PATH=./.rig/usage/rig-usage.jsonl opencode
+RIG_USAGE_SOURCE=opencode-local opencode
+RIG_USAGE_DISABLED=1 opencode
+```

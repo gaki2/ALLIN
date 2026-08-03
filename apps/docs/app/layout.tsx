@@ -4,6 +4,7 @@ import { getPageMap } from 'nextra/page-map';
 import { Footer, Layout, Navbar } from 'nextra-theme-docs';
 import type { ReactNode } from 'react';
 import { FaXTwitter } from 'react-icons/fa6';
+import appIcon from '../../rig/src-tauri/icons/icon.png';
 import { ThemeToggle } from './ThemeToggle';
 import './globals.css';
 import 'nextra-theme-docs/style.css';
@@ -16,16 +17,16 @@ export const metadata = {
   description:
     'Official documentation for Rig, a local-first desktop app for organizing agent SKILL files and tracking usage.',
   icons: {
-    icon: '/icon.png',
-    shortcut: '/icon.png',
-    apple: '/icon.png',
+    icon: appIcon.src,
+    shortcut: appIcon.src,
+    apple: appIcon.src,
   },
 };
 
 const navbarLogo = (
   <span className='flex items-center gap-2 text-black dark:text-white'>
     <Image
-      src='/icon.png'
+      src={appIcon}
       alt=''
       width={32}
       height={32}
@@ -101,7 +102,7 @@ export default async function RootLayout({
   return (
     <html lang='en' dir='ltr' suppressHydrationWarning>
       <Head>
-        <link rel='icon' href='/icon.png' type='image/png' />
+        <link rel='icon' href={appIcon.src} type='image/png' />
       </Head>
       <body>
         <Layout
