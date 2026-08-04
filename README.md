@@ -179,6 +179,8 @@ Actions. Vercel deploys the website after changes reach `main`.
 
 Tagged releases are built for Apple Silicon, signed with a Developer ID
 certificate, notarized by Apple, and published with Tauri updater artifacts.
+Versions use the Korea Standard Time release date in `YY.MDD.R` format; for
+example, `v26.804.1` is the first release made on August 4, 2026.
 See [the release guide](.github/RELEASE.md) for the required secrets and version
 workflow.
 

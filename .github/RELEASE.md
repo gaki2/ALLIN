@@ -19,12 +19,29 @@ its Tauri updater manifest.
 
 ## Publish a version
 
-1. Run `pnpm --filter desktop-app sync:version <version>` and commit the four
+Rig versions are release dates in `YY.MDD.R` format, where `MDD` joins the
+one- or two-digit month with a two-digit day and `R` is the release number for
+that day. This keeps the date unambiguous while every segment remains valid
+SemVer. For example:
+
+- `v26.803.1`: first release on August 3, 2026
+- `v26.804.1`: first release on August 4, 2026
+- `v26.804.2`: second release on August 4, 2026
+- `v26.831.1`: first release on August 31, 2026
+
+The GitHub tag and release title must both be exactly `v<version>`. Always use
+the current date in Korea Standard Time; never invent a future date to make a
+version larger.
+
+1. Run `pnpm --filter desktop-app sync:version <YY.MDD.R>` and commit the four
    synchronized version files.
 2. Merge the commit into `main` and wait for CI to pass.
-3. Push a matching tag, for example `git tag v26.8.31 && git push origin v26.8.31`.
+3. Push a matching tag, for example `git tag v26.804.1 && git push origin v26.804.1`.
 
 The release workflow verifies that the tag matches `apps/rig/package.json`,
 creates the GitHub release, and uploads the generated updater `latest.json`.
+After Tauri Action publishes its manifest, Rig replaces GitHub API asset URLs
+with public `releases/download` URLs and verifies that the updater endpoint
+returns an archive instead of GitHub asset metadata.
 It can also be started manually from the Actions tab to rebuild the version on
 the selected branch.

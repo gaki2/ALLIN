@@ -43,6 +43,9 @@ jobs:
       - name: Test desktop app
         run: pnpm --filter desktop-app test
 
+      - name: Test release tooling
+        run: node --test apps/rig/scripts/publish-updater-manifest.node-test.mjs
+
       - name: Lint desktop app
         run: pnpm --filter desktop-app lint
 

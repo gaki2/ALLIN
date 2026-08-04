@@ -88,9 +88,14 @@ jobs:
         with:
           projectPath: apps/rig
           tagName: v__VERSION__
-          releaseName: Rig v__VERSION__
+          releaseName: v__VERSION__
           releaseBody: Download the signed macOS build below.
           releaseDraft: false
           prerelease: false
           generateReleaseNotes: true
           args: --target aarch64-apple-darwin
+
+      - name: Publish stable updater manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node apps/rig/scripts/publish-updater-manifest.mjs
