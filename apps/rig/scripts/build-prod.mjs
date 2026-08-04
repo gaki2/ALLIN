@@ -108,19 +108,18 @@ const buildReleaseDownloadUrl = (version, artifactPath) => {
 };
 
 const updateLatestJson = async (version, artifactPath) => {
-  const latestJson = JSON.parse(await readFile(latestJsonPath, 'utf8'));
   const signaturePath = await ensureUpdaterSignature(artifactPath);
   const signature = (await readFile(signaturePath, 'utf8')).trim();
   const platformKey = getPlatformKey();
-
-  latestJson.version = version;
-  latestJson.notes = `Release ${version}`;
-  latestJson.pub_date = new Date().toISOString();
-  latestJson.platforms = {
-    ...(latestJson.platforms ?? {}),
-    [platformKey]: {
-      signature,
-      url: buildReleaseDownloadUrl(version, artifactPath),
+  const latestJson = {
+    version,
+    notes: `Release ${version}`,
+    pub_date: new Date().toISOString(),
+    platforms: {
+      [platformKey]: {
+        signature,
+        url: buildReleaseDownloadUrl(version, artifactPath),
+      },
     },
   };
 

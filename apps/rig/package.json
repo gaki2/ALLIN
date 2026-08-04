@@ -1,6 +1,6 @@
 {
   "name": "desktop-app",
-  "version": "26.8.31",
+  "version": "26.8.41",
   "private": true,
   "scripts": {
     "build:prod": "node ./scripts/build-prod.mjs && pnpm run release:upload",

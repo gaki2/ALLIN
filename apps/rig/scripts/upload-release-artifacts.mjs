@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const appDir = path.resolve(__dirname, '..');
+const latestJsonPath = path.join(appDir, 'latest.json');
 const packageJsonPath = path.join(appDir, 'package.json');
 
 const runCommand = command =>
@@ -88,6 +89,7 @@ const main = async () => {
     assertFileExists(dmgPath),
     assertFileExists(updaterPath),
     assertFileExists(signaturePath),
+    assertFileExists(latestJsonPath),
   ]);
 
   await runCommand('gh auth status');
@@ -114,6 +116,7 @@ const main = async () => {
       quote(dmgPath),
       quote(updaterPath),
       quote(signaturePath),
+      quote(latestJsonPath),
       '--clobber',
     ].join(' '),
   );
