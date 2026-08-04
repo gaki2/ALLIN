@@ -112,7 +112,7 @@ const getTitle = (status: ReturnType<typeof useAppUpdate>['status']) => {
     case 'installing':
       return 'Installing update';
     case 'error':
-      return 'Update check failed';
+      return 'Update failed';
     case 'idle':
       return 'App updates';
   }
@@ -129,7 +129,7 @@ const getDescription = (appUpdate: ReturnType<typeof useAppUpdate>) => {
     case 'installing':
       return 'Downloading and installing the update. Rig will restart automatically.';
     case 'error':
-      return 'Rig could not check for updates. Try again in a moment.';
+      return 'Rig could not complete the update. The detail below was also saved to the app log.';
     case 'idle':
       return 'Check whether a newer version of Rig is available.';
   }

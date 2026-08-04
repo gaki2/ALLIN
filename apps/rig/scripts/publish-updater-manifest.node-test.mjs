@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { normalizeUpdaterManifest } from './publish-updater-manifest.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const legacyManifestPath = path.resolve(__dirname, '..', 'latest.json');
 
 const repository = 'builder-mafia/rig';
 const version = '26.804.1';
@@ -93,4 +99,19 @@ test('rejects unsigned platform entries', () => {
       }),
     /missing a signature/,
   );
+});
+
+test('keeps the immutable legacy updater bootstrap manifest', async () => {
+  const legacyManifest = JSON.parse(
+    await readFile(legacyManifestPath, 'utf8'),
+  );
+  const legacyPlatform = legacyManifest.platforms?.['darwin-aarch64'];
+
+  assert.equal(legacyManifest.version, '26.8.31');
+  assert.equal(
+    legacyPlatform?.url,
+    'https://github.com/builder-mafia/rig/releases/download/v26.8.31/Rig_26.8.31_aarch64.app.tar.gz',
+  );
+  assert.equal(typeof legacyPlatform?.signature, 'string');
+  assert.ok(legacyPlatform.signature.length > 0);
 });
