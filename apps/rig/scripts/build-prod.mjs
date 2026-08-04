@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline/promises';
@@ -9,7 +9,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const appDir = path.resolve(__dirname, '..');
 const exportEnvScriptPath = path.join(appDir, 'scripts', 'export-env.sh');
-const latestJsonPath = path.join(appDir, 'latest.json');
+const releaseDir = path.join(appDir, '.release');
+const latestJsonPath = path.join(releaseDir, 'latest.json');
 const packageJsonPath = path.join(appDir, 'package.json');
 const macosBundleDir = path.join(
   appDir,
@@ -123,6 +124,7 @@ const updateLatestJson = async (version, artifactPath) => {
     },
   };
 
+  await mkdir(releaseDir, { recursive: true });
   await writeFile(
     latestJsonPath,
     `${JSON.stringify(latestJson, null, 2)}\n`,
@@ -141,7 +143,7 @@ const main = async () => {
 
   process.stdout.write(`\nRelease build finished for ${version}.\n`);
   process.stdout.write(
-    `Updated latest.json with ${path.basename(artifactPath)} metadata.\n`,
+    `Created .release/latest.json with ${path.basename(artifactPath)} metadata.\n`,
   );
 };
 

@@ -56,5 +56,5 @@ docs/
 !/scripts/upload-release-artifacts.mjs
 !/scripts/publish-updater-manifest.mjs
 !/scripts/publish-updater-manifest.node-test.mjs
-/latest.json
+/.release/
 .env.local

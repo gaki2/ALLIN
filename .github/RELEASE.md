@@ -45,3 +45,19 @@ with public `releases/download` URLs and verifies that the updater endpoint
 returns an archive instead of GitHub asset metadata.
 It can also be started manually from the Actions tab to rebuild the version on
 the selected branch.
+
+## Legacy updater compatibility
+
+`apps/rig/latest.json` is an immutable bootstrap manifest for Rig `26.6.231`,
+which has that raw GitHub path compiled into the app. Do not delete, rename, or
+replace it: those clients need it once to move to `26.8.31`, whose updater uses
+the GitHub Releases endpoint.
+
+Local release builds write their generated manifest to
+`apps/rig/.release/latest.json` so they cannot overwrite the compatibility
+manifest. CI verifies that the bootstrap manifest still has the expected
+version, direct download URL, and signature.
+
+Release builds persist updater lifecycle and failure details under the
+`rig::updater` target. On macOS, the rotating logs are stored in
+`~/Library/Logs/sh.rig.app/` with up to three 1 MB files.

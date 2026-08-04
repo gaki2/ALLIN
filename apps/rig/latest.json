@@ -1,0 +1,15 @@
+{
+  "version": "26.8.31",
+  "notes": "Compatibility update for Rig 26.6.231.",
+  "pub_date": "2026-08-04T12:54:28.027Z",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTSlFGek56V0orcFgreW5oNnh2alg3MmxPajUvYVZSNUNJbTRhcFl3K0pNSmxVbWpTRVk1Y0JKMGVlUGdtclNjUGxyTFJBZ3g3RjZnL05pVzJaUWI3UjQxeEhheTAzTEFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1ODQ4MDYyCWZpbGU6UmlnLmFwcC50YXIuZ3oKOTZINkM2TWk1L25XZC81bTVFenpDMklYUk1WL2FLTXhyODY5UGRIZXpGRWVuK3pKUHBmM2RBUEdCZUFsRnVqVTlRUzk5VUNRU3hCU3A3WTZmRHc2Qmc9PQo=",
+      "url": "https://github.com/builder-mafia/rig/releases/download/v26.8.31/Rig_26.8.31_aarch64.app.tar.gz"
+    },
+    "darwin-aarch64-app": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTSlFGek56V0orcFgreW5oNnh2alg3MmxPajUvYVZSNUNJbTRhcFl3K0pNSmxVbWpTRVk1Y0JKMGVlUGdtclNjUGxyTFJBZ3g3RjZnL05pVzJaUWI3UjQxeEhheTAzTEFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg1ODQ4MDYyCWZpbGU6UmlnLmFwcC50YXIuZ3oKOTZINkM2TWk1L25XZC81bTVFenpDMklYUk1WL2FLTXhyODY5UGRIZXpGRWVuK3pKUHBmM2RBUEdCZUFsRnVqVTlRUzk5VUNRU3hCU3A3WTZmRHc2Qmc9PQo=",
+      "url": "https://github.com/builder-mafia/rig/releases/download/v26.8.31/Rig_26.8.31_aarch64.app.tar.gz"
+    }
+  }
+}

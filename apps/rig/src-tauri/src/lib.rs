@@ -66,7 +66,14 @@ pub fn run() {
             }
         })
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_keyring::init());
+        .plugin(tauri_plugin_keyring::init())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .level(log::LevelFilter::Info)
+                .max_file_size(1_000_000)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
+                .build(),
+        );
 
     #[cfg(debug_assertions)]
     {
@@ -83,13 +90,6 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             setup_macos_menu(app)?;
 
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
