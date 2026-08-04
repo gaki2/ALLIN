@@ -3,15 +3,15 @@ import test from 'node:test';
 import { normalizeUpdaterManifest } from './publish-updater-manifest.mjs';
 
 const repository = 'builder-mafia/rig';
-const version = '26.8.41';
+const version = '26.804.1';
 const apiUrl =
   'https://api.github.com/repos/builder-mafia/rig/releases/assets/123';
 const downloadUrl =
-  'https://github.com/builder-mafia/rig/releases/download/v26.8.41/Rig_26.8.41_aarch64.app.tar.gz';
+  'https://github.com/builder-mafia/rig/releases/download/v26.804.1/Rig_26.804.1_aarch64.app.tar.gz';
 const assets = [
   {
     id: 123,
-    name: 'Rig_26.8.41_aarch64.app.tar.gz',
+    name: 'Rig_26.804.1_aarch64.app.tar.gz',
     url: apiUrl,
     browser_download_url: downloadUrl,
   },
