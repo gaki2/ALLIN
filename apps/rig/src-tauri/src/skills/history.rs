@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
@@ -129,6 +130,15 @@ pub async fn update_global_skill(name: String) -> Result<SkillUpdateResult, Skil
         .map_err(|error| invalid_path(format!("Could not find the installed skill: {error}")))?;
     validate_skill_directory(&skill_dir)?;
 
+    let npx_path = tokio::task::spawn_blocking(resolve_npx_path)
+        .await
+        .map_err(|error| update_error(format!("The npx lookup task failed: {error}")))??;
+    log::info!(
+        target: "rig::skills::update",
+        "Updating skill {name} with {}",
+        npx_path.display()
+    );
+
     let history_root = history_root();
     let before = create_snapshot(
         &history_root,
@@ -143,7 +153,7 @@ pub async fn update_global_skill(name: String) -> Result<SkillUpdateResult, Skil
 
     let command_name = name.clone();
     let output = tokio::task::spawn_blocking(move || {
-        Command::new("npx")
+        Command::new(npx_path)
             .args(["--yes", "skills", "update", &command_name, "-g", "-y"])
             .env("DISABLE_TELEMETRY", "1")
             .output()
@@ -161,10 +171,18 @@ pub async fn update_global_skill(name: String) -> Result<SkillUpdateResult, Skil
             &previous_lock,
         )?;
         let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
         let detail = stderr
             .lines()
-            .last()
+            .rev()
+            .find(|line| !line.trim().is_empty())
+            .or_else(|| stdout.lines().rev().find(|line| !line.trim().is_empty()))
             .unwrap_or("The Skills CLI returned an error.");
+        log::error!(
+            target: "rig::skills::update",
+            "Skill {name} update command failed with {}: {detail}",
+            output.status
+        );
         return Err(update_error(format!(
             "Update failed. Your current files were restored. {detail}"
         )));
@@ -230,7 +248,59 @@ pub async fn update_global_skill(name: String) -> Result<SkillUpdateResult, Skil
     };
     clear_update_cache().await;
 
+    log::info!(target: "rig::skills::update", "Skill {name} updated successfully");
+
     Ok(SkillUpdateResult { version })
+}
+
+fn resolve_npx_path() -> Result<PathBuf, SkillHistoryError> {
+    if let Some(path) = find_executable_in_paths("npx", std::env::var_os("PATH").as_deref()) {
+        return Ok(path);
+    }
+
+    #[cfg(unix)]
+    if let Some(path) = find_npx_with_login_shell() {
+        return Ok(path);
+    }
+
+    log::error!(
+        target: "rig::skills::update",
+        "Could not find npx in the app PATH or the user's login shell"
+    );
+    Err(update_error(
+        "Rig could not find npx. Install Node.js, then restart Rig and try again.",
+    ))
+}
+
+fn find_executable_in_paths(command: &str, paths: Option<&OsStr>) -> Option<PathBuf> {
+    std::env::split_paths(paths?).find_map(|directory| {
+        let candidate = directory.join(command);
+        candidate.is_file().then_some(candidate)
+    })
+}
+
+#[cfg(unix)]
+fn find_npx_with_login_shell() -> Option<PathBuf> {
+    let shell = std::env::var_os("SHELL")
+        .map(PathBuf::from)
+        .filter(|path| path.is_file())
+        .unwrap_or_else(|| PathBuf::from("/bin/zsh"));
+    let output = Command::new(shell)
+        .args(["-lic", "command -v npx"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .rev()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(PathBuf::from)
+        .find(|path| path.is_absolute() && path.is_file())
 }
 
 fn history_root() -> PathBuf {
@@ -689,6 +759,25 @@ mod tests {
             result.unwrap_err().code,
             SkillHistoryErrorCode::InvalidPath
         ));
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn finds_npx_in_an_explicit_path() {
+        let temp = std::env::temp_dir().join(format!("rig-npx-test-{}", Uuid::new_v4()));
+        let first = temp.join("first");
+        let second = temp.join("second");
+        fs::create_dir_all(&first).unwrap();
+        fs::create_dir_all(&second).unwrap();
+        let expected = second.join("npx");
+        fs::write(&expected, "test executable").unwrap();
+        let paths = std::env::join_paths([first, second]).unwrap();
+
+        assert_eq!(
+            find_executable_in_paths("npx", Some(&paths)),
+            Some(expected)
+        );
+
         fs::remove_dir_all(temp).unwrap();
     }
 }

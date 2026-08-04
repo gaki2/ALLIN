@@ -1,6 +1,14 @@
 import {
   Badge,
   cn,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   ScrollArea,
   Tooltip,
   TooltipContent,
@@ -10,16 +18,11 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Effect } from 'effect';
 import {
-  Activity,
   ArrowLeft,
-  BookOpenText,
-  Check,
   Clipboard,
-  Code2,
-  FileText,
   FileWarning,
-  History,
   LoaderCircle,
+  MoreHorizontal,
   Power,
   PowerOff,
   RefreshCw,
@@ -35,6 +38,7 @@ import {
   getLibraryHealth,
   getSkillFilePath,
   getSkillSourceLabel,
+  LARGE_SKILL_CHARACTER_THRESHOLD,
 } from '../insights';
 import { getSkillSourceId } from '../skillSources';
 import type {
@@ -161,8 +165,7 @@ const SkillInspector = ({
   const [activeTab, setActiveTab] = useState<InspectorTab>(
     skill.isValid ? 'rendered' : 'source',
   );
-  const [didCopy, setDidCopy] = useState(false);
-  const [didCopyPath, setDidCopyPath] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const skillName = skill.name;
   const {
     data: recentEvents = [],
@@ -176,18 +179,20 @@ const SkillInspector = ({
   const { data: allUsages = [] } = useQuery({
     queryKey: ['skill-usages', 'all'],
     queryFn: () => Effect.runPromise(listSkillUsages('all')),
+    enabled: activeTab === 'activity',
   });
   const weekUsage = weekUsages.find(usage => usage.name === skill.name);
   const allUsage = allUsages.find(usage => usage.name === skill.name);
   const lastUsedAt = allUsage?.lastUsedAt ?? null;
   const description = skill.description || 'No description provided.';
   const skillFilePath = getSkillFilePath(skill);
+  const estimatedTokens = estimateSkillTokens(skill.content);
+  const isLargeSkill = skill.content.length >= LARGE_SKILL_CHARACTER_THRESHOLD;
 
   const copyContent = async () => {
     try {
       await navigator.clipboard.writeText(skill.content);
-      setDidCopy(true);
-      window.setTimeout(() => setDidCopy(false), 1_500);
+      toast.success('Instructions copied');
     } catch {
       toast.error('Could not copy skill content');
     }
@@ -196,8 +201,7 @@ const SkillInspector = ({
   const copyFilePath = async () => {
     try {
       await navigator.clipboard.writeText(skillFilePath);
-      setDidCopyPath(true);
-      window.setTimeout(() => setDidCopyPath(false), 1_500);
+      toast.success('File path copied');
     } catch {
       toast.error('Could not copy the skill path');
     }
@@ -205,7 +209,7 @@ const SkillInspector = ({
 
   return (
     <div className='flex h-full min-h-0 flex-col bg-background'>
-      <header className='shrink-0 border-b bg-background/90 px-6 py-2.5 backdrop-blur-lg'>
+      <header className='shrink-0 border-b bg-background/90 px-6 pt-3 backdrop-blur-lg'>
         <div className='mx-auto max-w-5xl'>
           <button
             type='button'
@@ -215,110 +219,122 @@ const SkillInspector = ({
             <ArrowLeft size={16} />
             Library
           </button>
-          <div className='flex min-w-0 items-center gap-3'>
-            <h1 className='max-w-[35%] shrink-0 truncate text-lg font-semibold tracking-[-0.025em]'>
-              {skill.name}
-            </h1>
-            {!skill.isValid ? (
-              <Badge variant='destructive' className='shrink-0'>
-                Invalid
-              </Badge>
-            ) : null}
-            {skill.isArchived ? (
-              <Badge variant='secondary' className='shrink-0 text-[10px]'>
-                Disabled
-              </Badge>
-            ) : null}
-            {duplicateLocationCount > 1 ? (
-              <DuplicateSkillBadge locationCount={duplicateLocationCount} />
-            ) : null}
-            {updateStatus?.state === 'updateAvailable' ? (
-              <SkillUpdateBadge update={updateStatus} />
-            ) : null}
-            <p
-              className='min-w-0 flex-1 truncate text-sm text-muted-foreground'
-              title={description}
-            >
-              {description}
-            </p>
-            {updateStatus?.state === 'updateAvailable' && !skill.isArchived ? (
-              <UpdateSkillDialog
-                skill={skill}
-                updateStatus={updateStatus}
-                onUpdated={() => setActiveTab('history')}
-              />
-            ) : null}
-            <ShareSkillDialog skill={skill} updateStatus={updateStatus} />
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
-                <button
-                  type='button'
-                  disabled={isChangingArchiveState}
-                  aria-busy={isChangingArchiveState}
-                  aria-label={
-                    isChangingArchiveState
-                      ? skill.isArchived
-                        ? 'Enabling skill'
-                        : 'Disabling skill'
-                      : skill.isArchived
-                        ? 'Enable skill'
-                        : 'Disable skill'
-                  }
-                  onClick={() =>
-                    skill.isArchived
-                      ? onRestoreSkill(skill)
-                      : onArchiveSkill(skill)
-                  }
-                  className='rig-pressable inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border bg-background px-2 text-xs font-medium shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-50'
-                >
-                  {isChangingArchiveState ? (
-                    <LoaderCircle size={13} className='shrink-0 animate-spin' />
-                  ) : skill.isArchived ? (
-                    <Power size={13} className='shrink-0' />
-                  ) : (
-                    <PowerOff size={13} className='shrink-0' />
-                  )}
-                  <span className='hidden sm:inline'>
-                    {isChangingArchiveState
-                      ? skill.isArchived
-                        ? 'Enabling…'
-                        : 'Disabling…'
-                      : skill.isArchived
-                        ? 'Enable'
-                        : 'Disable'}
-                  </span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent
-                side='bottom'
-                sideOffset={6}
-                className='max-w-72 leading-5'
+          <div className='flex min-w-0 items-start gap-4'>
+            <div className='min-w-0 flex-1'>
+              <div className='flex min-w-0 items-center gap-2'>
+                <h1 className='truncate text-lg font-semibold tracking-[-0.025em]'>
+                  {skill.name}
+                </h1>
+                {!skill.isValid ? (
+                  <Badge variant='destructive' className='shrink-0'>
+                    Invalid
+                  </Badge>
+                ) : null}
+                {skill.isArchived ? (
+                  <Badge variant='secondary' className='shrink-0 text-[10px]'>
+                    Disabled
+                  </Badge>
+                ) : null}
+                {duplicateLocationCount > 1 ? (
+                  <DuplicateSkillBadge
+                    locationCount={duplicateLocationCount}
+                    onShowDetails={() => setDetailsOpen(true)}
+                  />
+                ) : null}
+                {updateStatus?.state === 'updateAvailable' ? (
+                  <SkillUpdateBadge update={updateStatus} />
+                ) : null}
+                {isLargeSkill ? (
+                  <Badge variant='outline' className='shrink-0 text-[10px]'>
+                    Large · ~{formatCompactNumber(estimatedTokens)} tokens
+                  </Badge>
+                ) : null}
+              </div>
+              <p
+                className='mt-1 line-clamp-1 max-w-2xl text-sm leading-5 text-muted-foreground'
+                title={description}
               >
-                {skill.isArchived
-                  ? 'Returns this skill to agent discovery at its original location.'
-                  : 'Stops agents from discovering this skill. Its files stay on disk, and you can enable it again anytime.'}
-              </TooltipContent>
-            </Tooltip>
-            <button
-              type='button'
-              onClick={copyContent}
-              className='rig-pressable inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border bg-background px-2 text-xs font-medium shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-            >
-              {didCopy ? <Check size={13} /> : <Clipboard size={13} />}
-              <span className='hidden sm:inline'>
-                {didCopy ? 'Copied' : 'Copy'}
-              </span>
-            </button>
+                {description}
+              </p>
+            </div>
+
+            <div className='flex shrink-0 items-center gap-2'>
+              {updateStatus?.state === 'updateAvailable' &&
+              !skill.isArchived ? (
+                <UpdateSkillDialog
+                  skill={skill}
+                  updateStatus={updateStatus}
+                  onUpdated={() => setActiveTab('history')}
+                />
+              ) : null}
+              <ShareSkillDialog skill={skill} updateStatus={updateStatus} />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type='button'
+                    aria-label='More skill actions'
+                    className='rig-pressable inline-flex size-7 shrink-0 items-center justify-center rounded-lg border bg-background shadow-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='end' className='w-52'>
+                  <DropdownMenuItem onSelect={() => void copyContent()}>
+                    <Clipboard />
+                    Copy instructions
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void copyFilePath()}>
+                    <Clipboard />
+                    Copy file path
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={isChangingArchiveState}
+                    className='items-start'
+                    onSelect={() =>
+                      skill.isArchived
+                        ? onRestoreSkill(skill)
+                        : onArchiveSkill(skill)
+                    }
+                  >
+                    {isChangingArchiveState ? (
+                      <LoaderCircle className='animate-spin' />
+                    ) : skill.isArchived ? (
+                      <Power />
+                    ) : (
+                      <PowerOff />
+                    )}
+                    <span>
+                      <span className='block'>
+                        {isChangingArchiveState
+                          ? skill.isArchived
+                            ? 'Enabling…'
+                            : 'Disabling…'
+                          : skill.isArchived
+                            ? 'Enable skill'
+                            : 'Disable skill'}
+                      </span>
+                      {!isChangingArchiveState ? (
+                        <span className='mt-0.5 block text-[11px] text-muted-foreground'>
+                          {skill.isArchived
+                            ? 'Return it to agent discovery'
+                            : 'Hide it from agent discovery'}
+                        </span>
+                      ) : null}
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
-          <div className='mt-2 flex min-w-0 items-center gap-4'>
+          <div className='mt-2 flex h-10 min-w-0 items-end justify-between gap-4'>
             <div
-              className='flex shrink-0 gap-1'
+              className='flex h-full shrink-0 items-end gap-5'
               role='tablist'
               aria-label='Skill content view'
             >
               <InspectorTabButton
-                icon={<BookOpenText size={14} />}
                 label='Instructions'
                 value='rendered'
                 isSelected={activeTab === 'rendered'}
@@ -326,71 +342,79 @@ const SkillInspector = ({
                 onSelect={setActiveTab}
               />
               <InspectorTabButton
-                icon={<Code2 size={14} />}
                 label='Source'
                 value='source'
                 isSelected={activeTab === 'source'}
                 onSelect={setActiveTab}
               />
               <InspectorTabButton
-                icon={<Activity size={14} />}
                 label='Activity'
                 value='activity'
                 isSelected={activeTab === 'activity'}
                 onSelect={setActiveTab}
               />
               <InspectorTabButton
-                icon={<History size={14} />}
                 label='History'
                 value='history'
                 isSelected={activeTab === 'history'}
                 onSelect={setActiveTab}
               />
             </div>
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
+            <Popover open={detailsOpen} onOpenChange={setDetailsOpen}>
+              <PopoverTrigger asChild>
                 <button
                   type='button'
-                  onClick={copyFilePath}
-                  aria-label={`Copy skill file path: ${skillFilePath}`}
-                  className='rig-pressable flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 text-left text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  aria-label='Show skill details'
+                  className='rig-pressable mb-1.5 inline-flex h-7 items-center rounded-lg px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                 >
-                  {didCopyPath ? (
-                    <Check size={12} className='shrink-0' />
-                  ) : (
-                    <FileText size={12} className='shrink-0' />
-                  )}
-                  <span className='truncate font-mono'>{skillFilePath}</span>
+                  Details
                 </button>
-              </TooltipTrigger>
-              <TooltipContent
+              </PopoverTrigger>
+              <PopoverContent
+                align='end'
                 sideOffset={6}
-                className='max-w-xl break-all font-mono leading-5'
+                className='skill-details-popover w-[360px] p-3'
               >
-                <p>{skillFilePath}</p>
-                <p className='mt-1 font-sans opacity-70'>
-                  {didCopyPath ? 'Path copied' : 'Click to copy path'}
+                <div className='grid grid-cols-[84px_minmax(0,1fr)] gap-x-3 gap-y-3 text-sm'>
+                  <span className='text-muted-foreground'>Source</span>
+                  <span className='flex min-w-0 items-center gap-1.5 font-medium'>
+                    <SkillProviderIcon
+                      sourceId={getSkillSourceId(skill)}
+                      size={13}
+                    />
+                    <span className='truncate'>
+                      {getSkillSourceLabel(skill)}
+                    </span>
+                  </span>
+                  <span className='text-muted-foreground'>Location</span>
+                  <button
+                    type='button'
+                    onClick={copyFilePath}
+                    title={skillFilePath}
+                    className='rig-pressable flex min-w-0 items-center gap-1.5 rounded-md text-left font-mono text-xs hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  >
+                    <span className='truncate'>
+                      {abbreviateHomePath(skillFilePath)}
+                    </span>
+                    <Clipboard size={12} className='shrink-0' />
+                  </button>
+                  <span className='text-muted-foreground'>Estimated size</span>
+                  <span>
+                    About {formatCompactNumber(estimatedTokens)} tokens
+                  </span>
+                  {skill.updatedAt ? (
+                    <>
+                      <span className='text-muted-foreground'>Modified</span>
+                      <span>{formatRelativeTime(skill.updatedAt)}</span>
+                    </>
+                  ) : null}
+                </div>
+                <p className='mt-3 border-t pt-3 text-xs leading-5 text-muted-foreground'>
+                  Token count is estimated from file length and may differ by
+                  model.
                 </p>
-              </TooltipContent>
-            </Tooltip>
-            <p
-              className='ml-auto hidden shrink-0 truncate text-right text-xs text-muted-foreground lg:block'
-              title={`~${formatCompactNumber(estimateSkillTokens(skill.content))} estimated tokens${skill.updatedAt ? ` · Updated ${formatRelativeTime(skill.updatedAt)}` : ''}`}
-            >
-              <span className='inline-flex items-center gap-1'>
-                <SkillProviderIcon
-                  sourceId={getSkillSourceId(skill)}
-                  size={13}
-                />
-                {getSkillSourceLabel(skill)}
-              </span>
-              <span aria-hidden='true'> · </span>~
-              {formatCompactNumber(estimateSkillTokens(skill.content))} tokens
-              <span aria-hidden='true'> · </span>
-              {weekUsage?.count ?? 0}× / 7d
-              <span aria-hidden='true'> · </span>
-              {lastUsedAt ? formatRelativeTime(lastUsedAt) : 'no calls'}
-            </p>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </header>
@@ -435,6 +459,8 @@ const SkillInspector = ({
                 error={eventsError}
                 isLoading={isEventsLoading}
                 hasDuplicateNames={duplicateLocationCount > 1}
+                weekUsage={weekUsage}
+                lastUsedAt={lastUsedAt}
               />
             ) : (
               <SkillHistoryPanel skill={skill} />
@@ -523,22 +549,28 @@ const ManagementOverview = ({
   );
 };
 
-const DuplicateSkillBadge = ({ locationCount }: { locationCount: number }) => (
+const DuplicateSkillBadge = ({
+  locationCount,
+  onShowDetails,
+}: {
+  locationCount: number;
+  onShowDetails: () => void;
+}) => (
   <Tooltip delayDuration={300}>
     <TooltipTrigger asChild>
-      <Badge
-        variant='outline'
-        tabIndex={0}
-        className='shrink-0 border-amber-500/30 bg-amber-500/8 text-[10px] text-amber-700 dark:text-amber-300'
+      <button
+        type='button'
+        onClick={onShowDetails}
+        className='rig-pressable inline-flex h-5 shrink-0 items-center rounded-full border border-amber-500/30 bg-amber-500/8 px-2 text-[10px] font-semibold text-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-amber-300'
       >
         Duplicate · {locationCount}
-      </Badge>
+      </button>
     </TooltipTrigger>
     <TooltipContent sideOffset={6} className='max-w-64 leading-5'>
       <p className='font-medium'>Duplicate skill name</p>
       <p className='mt-0.5 opacity-80'>
-        This name exists in {locationCount} locations. Check the source before
-        editing; activity is grouped by skill name.
+        This name exists in {locationCount} locations. Open Details to confirm
+        this file&apos;s location. Activity is grouped by skill name.
       </p>
     </TooltipContent>
   </Tooltip>
@@ -713,14 +745,12 @@ const OverviewList = ({
 type InspectorTab = 'rendered' | 'source' | 'activity' | 'history';
 
 const InspectorTabButton = ({
-  icon,
   label,
   value,
   isSelected,
   disabled,
   onSelect,
 }: {
-  icon: React.ReactNode;
   label: string;
   value: InspectorTab;
   isSelected: boolean;
@@ -734,13 +764,12 @@ const InspectorTabButton = ({
     disabled={disabled}
     onClick={() => onSelect(value)}
     className={cn(
-      'rig-pressable inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40',
+      'rig-pressable relative inline-flex h-10 items-center text-xs font-medium after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:origin-center after:rounded-full after:bg-foreground after:transition-transform after:duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40',
       isSelected
-        ? 'bg-foreground text-background'
-        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        ? 'text-foreground after:scale-x-100'
+        : 'text-muted-foreground after:scale-x-0 hover:text-foreground',
     )}
   >
-    {icon}
     {label}
   </button>
 );
@@ -750,20 +779,32 @@ const ActivityPanel = ({
   error,
   isLoading,
   hasDuplicateNames,
+  weekUsage,
+  lastUsedAt,
 }: {
   events: SkillUsageEvent[];
   error: unknown;
   isLoading: boolean;
   hasDuplicateNames: boolean;
+  weekUsage?: SkillUsage;
+  lastUsedAt: string | null;
 }) => (
   <div
     className='overflow-hidden rounded-2xl border bg-card'
     aria-live='polite'
   >
     <div className='border-b px-4 py-3'>
-      <h2 className='text-sm font-semibold'>Recent calls</h2>
+      <h2 className='text-sm font-semibold'>
+        {weekUsage?.count
+          ? `${weekUsage.count} ${weekUsage.count === 1 ? 'call' : 'calls'} in the last 7 days`
+          : lastUsedAt
+            ? 'No calls in the last 7 days'
+            : 'No recorded calls'}
+      </h2>
       <p className='mt-0.5 text-xs text-muted-foreground'>
-        The latest 20 recorded calls for this skill name.
+        {lastUsedAt
+          ? `Last called ${formatRelativeTime(lastUsedAt)}. Showing the latest 20 calls.`
+          : 'Rig has not recorded a call for this skill yet.'}
       </p>
       {hasDuplicateNames ? (
         <p className='mt-1 text-xs text-amber-700'>
@@ -826,6 +867,12 @@ const formatCompactNumber = (value: number) =>
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(value);
+
+const abbreviateHomePath = (value: string) =>
+  value
+    .replace(/^\/Users\/[^/]+(?=\/)/, '~')
+    .replace(/^\/home\/[^/]+(?=\/)/, '~')
+    .replace(/^[A-Za-z]:\\Users\\[^\\]+(?=\\)/, '~');
 
 const formatDateTime = (value: string) => {
   const date = new Date(value);

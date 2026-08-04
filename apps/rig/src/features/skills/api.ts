@@ -27,13 +27,27 @@ export class ManageSkillVersionError extends Data.TaggedError(
 )<{
   kind: 'InvokeError' | 'SkillHistoryError' | 'ZodParseError';
   cause: unknown;
+  message: string;
 }> {}
 
-const mapSkillHistoryError = (error: unknown) => {
+const unknownErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'string' && error.trim().length > 0) {
+    return error.trim();
+  }
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message.trim();
+  }
+  return fallback;
+};
+
+export const mapSkillHistoryError = (error: unknown) => {
   const parsed = SkillHistoryErrorSchema.safeParse(error);
   return new ManageSkillVersionError({
     kind: parsed.success ? 'SkillHistoryError' : 'InvokeError',
     cause: parsed.success ? parsed.data : error,
+    message: parsed.success
+      ? parsed.data.message
+      : unknownErrorMessage(error, 'Rig could not complete this skill action.'),
   });
 };
 
@@ -46,7 +60,11 @@ export const updateSkill = Effect.fn('updateSkill')(function* (name: string) {
   return yield* Effect.try({
     try: () => SkillUpdateResultSchema.parse(result),
     catch: error =>
-      new ManageSkillVersionError({ kind: 'ZodParseError', cause: error }),
+      new ManageSkillVersionError({
+        kind: 'ZodParseError',
+        cause: error,
+        message: 'Rig received an invalid response after updating the skill.',
+      }),
   });
 });
 
@@ -65,7 +83,11 @@ export const listSkillVersions = Effect.fn('listSkillVersions')(function* (
   return yield* Effect.try({
     try: () => SkillVersionSummarySchema.array().parse(result),
     catch: error =>
-      new ManageSkillVersionError({ kind: 'ZodParseError', cause: error }),
+      new ManageSkillVersionError({
+        kind: 'ZodParseError',
+        cause: error,
+        message: 'Rig received invalid skill version history.',
+      }),
   });
 });
 
@@ -86,7 +108,11 @@ export const readSkillVersion = Effect.fn('readSkillVersion')(function* (
   return yield* Effect.try({
     try: () => SkillVersionDetailSchema.parse(result),
     catch: error =>
-      new ManageSkillVersionError({ kind: 'ZodParseError', cause: error }),
+      new ManageSkillVersionError({
+        kind: 'ZodParseError',
+        cause: error,
+        message: 'Rig could not read this saved skill version.',
+      }),
   });
 });
 
@@ -107,7 +133,11 @@ export const restoreSkillVersion = Effect.fn('restoreSkillVersion')(function* (
   return yield* Effect.try({
     try: () => SkillVersionSummarySchema.parse(result),
     catch: error =>
-      new ManageSkillVersionError({ kind: 'ZodParseError', cause: error }),
+      new ManageSkillVersionError({
+        kind: 'ZodParseError',
+        cause: error,
+        message: 'Rig received an invalid response after restoring the skill.',
+      }),
   });
 });
 
