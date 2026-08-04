@@ -52,6 +52,10 @@
   .rig-fade-in {
     animation: rig-fade-in 140ms cubic-bezier(0.23, 1, 0.32, 1);
   }
+
+  .skill-details-popover {
+    transform: none !important;
+  }
 }
 
 @keyframes rig-fade-in {
