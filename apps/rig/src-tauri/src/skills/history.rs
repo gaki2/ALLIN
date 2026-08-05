@@ -1,4 +1,4 @@
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
@@ -133,6 +133,7 @@ pub async fn update_global_skill(name: String) -> Result<SkillUpdateResult, Skil
     let npx_path = tokio::task::spawn_blocking(resolve_npx_path)
         .await
         .map_err(|error| update_error(format!("The npx lookup task failed: {error}")))??;
+    let command_path = executable_environment_path(&npx_path)?;
     log::info!(
         target: "rig::skills::update",
         "Updating skill {name} with {}",
@@ -156,6 +157,7 @@ pub async fn update_global_skill(name: String) -> Result<SkillUpdateResult, Skil
         Command::new(npx_path)
             .args(["--yes", "skills", "update", &command_name, "-g", "-y"])
             .env("DISABLE_TELEMETRY", "1")
+            .env("PATH", command_path)
             .output()
     })
     .await
@@ -277,6 +279,23 @@ fn find_executable_in_paths(command: &str, paths: Option<&OsStr>) -> Option<Path
         let candidate = directory.join(command);
         candidate.is_file().then_some(candidate)
     })
+}
+
+fn executable_environment_path(executable: &Path) -> Result<OsString, SkillHistoryError> {
+    let executable_directory = executable
+        .parent()
+        .ok_or_else(|| update_error("Rig could not determine the Node.js executable directory."))?;
+    let mut directories = vec![executable_directory.to_path_buf()];
+
+    if let Some(current_path) = std::env::var_os("PATH") {
+        directories.extend(
+            std::env::split_paths(&current_path)
+                .filter(|directory| directory != executable_directory),
+        );
+    }
+
+    std::env::join_paths(directories)
+        .map_err(|error| update_error(format!("Rig could not prepare the Node.js PATH: {error}")))
 }
 
 #[cfg(unix)]
@@ -777,6 +796,34 @@ mod tests {
             find_executable_in_paths("npx", Some(&paths)),
             Some(expected)
         );
+
+        fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn runs_env_node_shebang_with_the_npx_directory_on_path() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp = std::env::temp_dir().join(format!("rig-node-path-test-{}", Uuid::new_v4()));
+        let bin = temp.join("bin");
+        fs::create_dir_all(&bin).unwrap();
+        let npx = bin.join("npx");
+        let node = bin.join("node");
+        fs::write(&npx, "#!/usr/bin/env node\n").unwrap();
+        fs::write(&node, "#!/bin/sh\nprintf fake-node-ok\n").unwrap();
+        fs::set_permissions(&npx, fs::Permissions::from_mode(0o755)).unwrap();
+        fs::set_permissions(&node, fs::Permissions::from_mode(0o755)).unwrap();
+
+        let command_path = executable_environment_path(&npx).unwrap();
+        let output = Command::new(&npx)
+            .env_clear()
+            .env("PATH", command_path)
+            .output()
+            .unwrap();
+
+        assert!(output.status.success());
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "fake-node-ok");
 
         fs::remove_dir_all(temp).unwrap();
     }
